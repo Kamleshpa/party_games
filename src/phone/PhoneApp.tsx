@@ -192,6 +192,9 @@ function CaptainBar({ client, v }: { client: PlayerClient; v: any }) {
           <button className="btn" onClick={() => client.cap({ cmd: 'skip' })}>
             {v.gameId === 'tambola' ? '⏭ Next number' : '⏭ Skip'}
           </button>
+          <button className="btn" onClick={() => client.cap({ cmd: 'music', on: !v.music })}>
+            {v.music ? '🔇 Music off' : '🎵 Music on'}
+          </button>
           <button className="btn" onClick={() => client.cap({ cmd: 'replay' })}>
             🔁 Restart {meta ? meta.title : 'game'}
           </button>

@@ -42,6 +42,8 @@ export interface GameCtx {
   fx(f: Fx): void;
   /** Game over: award party stars (shown on the lobby leaderboard). */
   end(stars: Record<string, number>): void;
+  /** How long the announcer needs for a voice line (ms); 0 when muted/unknown. */
+  voiceMs(key: string): number;
 }
 
 export interface GameModule<S = any, Settings = any> {

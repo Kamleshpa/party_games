@@ -4,6 +4,11 @@ import type { SfxName } from '../games/types';
 let ac: AudioContext | null = null;
 let master: GainNode | null = null;
 
+/** Shared audio graph for sound effects and background music (null until unlockAudio ran). */
+export function audioGraph(): { ac: AudioContext; master: GainNode } | null {
+  return ac && master ? { ac, master } : null;
+}
+
 export function unlockAudio() {
   try {
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext;

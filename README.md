@@ -4,11 +4,13 @@ A party game app for get-togethers. The **TV shows the game** in its browser; ev
 
 | Game | What happens |
 |---|---|
-| 🎟️ **Tambola Night** | Housie with auto-generated tickets on each phone. The TV announces every number with an Indian-English voice and a fun call ("Two and five, twenty-five — Quarter century!", "Two fat laddoos!"). Claim Early Five / Top, Middle, Bottom Line / Four Corners / Full House from the phone. A false claim = **BOGEY 🚨** + 3 numbers in jail. "Auto-mark" mode for kids. |
+| 🎟️ **Tambola Night** | Housie with auto-generated tickets on each phone. A game-show announcer calls every number with a fun line ("Two and five… twenty-five! Quarter century — silver jubilee!", "Knock at the door — it's the in-laws, hide the snacks!") over a bhangra-style game-show beat, with hype lines, a halfway call, and a "somebody is ONE number away from Full House!" moment. Claim Early Five / Top, Middle, Bottom Line / Four Corners / Full House from the phone. A false claim = **BOGEY 🚨** + 3 numbers in jail. "Auto-mark" mode for kids. |
 | 🎬 **Emoji Movie** | Emojis pop up one at a time on the TV — guess the film. Lock in early for more points, 2 hints per game, and the last 2 questions count double. Bollywood classics, 2000s hits, and a Kids & Hollywood pack. |
 | 📼 **90s Kids Quiz** | Doordarshan, ads and jingles, cricket, Indipop, comics, gadgets. Multiple choice, True or False, and Guess the Year (a slider; the TV shows everyone's guesses on a number line). |
 
 Across the whole evening, players earn ⭐ party stars, shown on the lobby leaderboard.
+
+**Background music** is generated live in the browser: an original desi game-show groove, so there's nothing to license. There's a chilled lobby track, the Tambola bhangra beat (it gets more intense near the end), and a ticking "thinking" track for the quizzes. It dips automatically while the announcer talks. Turn it on or off with 🎵 on the TV, or from the Captain's phone.
 
 ## Playing
 
@@ -54,7 +56,27 @@ npm run build
 ### Adding your own content
 - Emoji movies: `src/games/emoji/data.ts`
 - Quiz questions: `src/games/quiz/data.ts` (for multiple choice, put the correct answer **first**; options get shuffled)
-- Tambola calls: `src/games/tambola/calls.ts`. After editing, regenerate the voice clips on a Mac with `npm run gen:audio` (uses the built-in Indian-English voice "Rishi"), then commit `public/audio/tambola`.
+- Tambola calls and announcer lines: `src/games/tambola/calls.ts`. After editing, regenerate the voice clips (see below). Only the lines you changed get re-recorded.
+
+## Making the announcer sound like a real person
+
+The clips in `public/audio/tambola` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds robotic. For a real, lively game-show host, generate them once with a neural voice service. The full script is about 6,300 characters.
+
+**Option A: ElevenLabs (most human-sounding).** The free plan covers one full recording.
+1. Sign up at elevenlabs.io and copy your API key (Profile → API Keys).
+2. Open the **Voice Library** and search for something like "Indian", "energetic" or "host". Add a voice you like to My Voices and copy its **Voice ID**.
+3. Run:
+   ```bash
+   ELEVENLABS_API_KEY=your_key ELEVENLABS_VOICE_ID=the_voice_id npm run gen:audio
+   ```
+
+**Option B: OpenAI.** The voice is directed to act as an "excited Indian game-show host". It costs a few cents.
+```bash
+OPENAI_API_KEY=your_key npm run gen:audio
+```
+To try other voices, add `OPENAI_VOICE=coral` (or `ash`, `ballad`, `verse`, `sage`) and `FORCE=1` to re-record everything.
+
+Then commit and push `public/audio/tambola`, and Vercel serves the new voice. The key is only used on your laptop for this one step. Don't put it in the code or in Vercel.
 
 ### Layout
 ```

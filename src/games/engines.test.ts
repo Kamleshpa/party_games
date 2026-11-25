@@ -5,7 +5,7 @@ import { emoji } from './emoji/engine';
 import { quiz, buildQuiz } from './quiz/engine';
 import { EMOJI_MOVIES } from './emoji/data';
 import { QUIZ } from './quiz/data';
-import { callSpoken, callTitle } from './tambola/calls';
+import { callFun, callSpoken, callTitle } from './tambola/calls';
 import type { Fx, GameCtx, Player } from './types';
 
 function fakeCtx(n = 3) {
@@ -23,6 +23,7 @@ function fakeCtx(n = 3) {
     player: (id) => players.find((p) => p.id === id),
     fx: (f) => fx.push(f),
     end: (s) => { ended = s; },
+    voiceMs: () => 0,
   };
   return { ctx, advance: (ms: number) => (now += ms), fx, ended: () => ended, players };
 }
@@ -68,7 +69,9 @@ describe('tambola tickets', () => {
     expect(callTitle(25)).toBe('Two and five — twenty-five');
     expect(callTitle(22)).toBe('Two and two — twenty-two');
     expect(callTitle(7)).toBe('Single number seven');
-    expect(callSpoken(25)).toBe('Two and five, twenty-five! Quarter century!');
+    expect(callSpoken(25)).toContain('Two and five… twenty-five!');
+    expect(callSpoken(25)).toContain('Quarter century');
+    for (let n = 1; n <= 90; n++) expect(callFun(n).length).toBeGreaterThan(3);
   });
 });
 

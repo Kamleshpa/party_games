@@ -5,7 +5,8 @@ import { GAME_ORDER } from '../games/registry';
 import { load, params, remove } from '../lib/storage';
 import { roomCode } from '../lib/rand';
 import { sfx, unlockAudio } from '../lib/sfx';
-import { checkClips, isMuted, playVoice, setMuted } from '../lib/voice';
+import { isMuted, loadVoices, playVoice, setMuted, voiceMs } from '../lib/voice';
+import { duckMusic, setMusic, type Track } from '../lib/music';
 import { Emo, setEmojiImages } from '../lib/Emo';
 import { Confetti, Garland, JoinChip, Stage, type ConfettiHandle } from './common';
 import { Lobby } from './Lobby';
@@ -40,7 +41,7 @@ export function TvApp() {
 
   async function begin(resume: boolean) {
     unlockAudio();
-    checkClips();
+    loadVoices();
     setEmojiImages(true);
     try {
       const el: any = document.documentElement;
@@ -69,7 +70,7 @@ export function TvApp() {
         transport = await createHostTransport(kind);
         await transport.start(state.code);
       }
-      const r = new Room(transport, state);
+      const r = new Room(transport, state, { voiceMs });
       r.start();
       const bots = Number(params().get('bots') || 0);
       if (bots > 0 && !state.players.some((p) => p.bot)) r.addBots(Math.min(12, bots));
@@ -200,6 +201,27 @@ function TvRoom({ room, net }: { room: Room; net: NetKind }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [room]);
 
+  // Background music follows the game: lobby groove, Tambola bhangra, quiz "thinking" tick.
+  useEffect(() => {
+    const st = room.s;
+    const g = st.phase === 'game' ? st.game : null;
+    let track: Track = 'lobby';
+    let lvl = 1;
+    if (g) {
+      if (st.gameId === 'tambola') {
+        track = g.phase === 'final' ? 'lobby' : 'tambola';
+        lvl = g.nearFull ? 2 : 1;
+      } else {
+        track = g.phase === 'final' ? 'lobby' : 'quiz';
+        lvl = g.phase === 'board' ? 2 : g.phase === 'reveal' ? 0 : 1;
+      }
+      if (g.paused) track = 'off';
+    }
+    duckMusic('show', !!(g && st.gameId === 'tambola' && g.show));
+    setMusic(st.music === false ? 'off' : track, lvl);
+  });
+  useEffect(() => () => setMusic('off'), []);
+
   let body;
   if (s.phase === 'lobby' || !s.gameId) body = <Lobby room={room} net={net} />;
   else if (s.gameId === 'tambola') body = <TambolaTv room={room} s={s.game} />;
@@ -227,6 +249,13 @@ function TvRoom({ room, net }: { room: Room; net: NetKind }) {
           ))}
         </div>
         <Confetti ref={confetti} />
+        <button
+          className="mute-btn music-btn"
+          tabIndex={-1}
+          onClick={() => room.captain({ cmd: 'music', on: s.music === false })}
+        >
+          <Emo e="🎵" size={40} className={s.music === false ? 'off' : ''} />
+        </button>
         <button
           className="mute-btn"
           tabIndex={-1}

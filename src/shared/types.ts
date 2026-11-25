@@ -22,6 +22,7 @@ export interface PlayerView {
   me: PublicPlayer;
   players: PublicPlayer[];
   settings: Record<GameId, any>;
+  music: boolean;
   game: any;
 }
 
@@ -46,4 +47,5 @@ export type CaptainCmd =
   | { cmd: 'end' }
   | { cmd: 'replay' }
   | { cmd: 'lobby' }
-  | { cmd: 'kick'; pid: string };
+  | { cmd: 'kick'; pid: string }
+  | { cmd: 'music'; on: boolean };

@@ -306,7 +306,9 @@ body.is-tv {
   border-radius: 999px;
   width: 70px; height: 70px;
 }
-.net-badge { position: absolute; left: 110px; bottom: 34px; font-size: 22px; opacity: 0.6; z-index: 37; }
+.music-btn { left: 106px; }
+.music-btn .off { opacity: 0.35; filter: grayscale(1); }
+.net-badge { position: absolute; left: 190px; bottom: 34px; font-size: 22px; opacity: 0.6; z-index: 37; }
 
 .countdown {
   font-size: 160px;

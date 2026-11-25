@@ -23,6 +23,7 @@ export interface RoomState {
   settings: Record<GameId, any>;
   gameNo: number;
   ended: boolean;
+  music?: boolean;
   savedAt: number;
 }
 
@@ -58,7 +59,11 @@ export class Room {
   private dirty = true;
   ctx: GameCtx;
 
-  constructor(public transport: HostTransport, state: RoomState) {
+  constructor(
+    public transport: HostTransport,
+    state: RoomState,
+    private opts: { voiceMs?: (key: string) => number } = {},
+  ) {
     this.s = state;
     // After a TV refresh nobody is connected until their phone reconnects.
     for (const p of this.s.players) {
@@ -79,6 +84,7 @@ export class Room {
         for (const p of this.s.players) p.stars += Math.max(0, stars[p.id] || 0);
         this.changed();
       },
+      voiceMs: (key) => (this.opts.voiceMs ? this.opts.voiceMs(key) : 0),
     };
   }
 
@@ -267,6 +273,9 @@ export class Room {
         s.game = undefined;
         s.gameId = undefined;
         break;
+      case 'music':
+        s.music = !!c.on;
+        break;
       case 'kick': {
         const p = this.ctx.player(c.pid);
         if (p && s.phase === 'lobby') {
@@ -358,6 +367,7 @@ export class Room {
         me: pub(p),
         players,
         settings: s.settings,
+        music: s.music !== false,
         game: mod ? mod.view(this.ctx, s.game, p.id) : null,
       };
       const json = JSON.stringify(v);

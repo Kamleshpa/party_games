@@ -69,6 +69,17 @@ export function PhoneLobby({ client, v, onEdit }: { client: PlayerClient; v: Pla
               </div>
             </div>
           ))}
+          <div className="opt-row">
+            <span className="opt-label">Background music on the TV</span>
+            <div className="seg">
+              <button className={v.music ? 'on' : ''} onClick={() => client.cap({ cmd: 'music', on: true })}>
+                🎵 On
+              </button>
+              <button className={!v.music ? 'on' : ''} onClick={() => client.cap({ cmd: 'music', on: false })}>
+                🔇 Off
+              </button>
+            </div>
+          </div>
           <button
             className="btn primary big start-btn"
             onClick={() => {

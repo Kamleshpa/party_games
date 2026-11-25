@@ -47,6 +47,7 @@ export interface TambolaState {
   lastClaim: Record<string, { prize: PrizeId; ok: boolean; seq: number; revealed: boolean; note?: string }>;
   seq: number;
   stars: Record<string, number>;
+  nearFull?: boolean;
 }
 
 function interval(s: TambolaState) {
@@ -63,6 +64,21 @@ export function prizeOpen(s: TambolaState, prize: PrizeId, pid?: string): boolea
   if (!w) return true;
   if (w.atCall !== s.called.length) return false;
   return pid ? w.winners.indexOf(pid) < 0 : true;
+}
+
+/** Something worth announcing after a number? (one line at most) */
+function announcement(ctx: GameCtx, s: TambolaState): string | null {
+  if (!s.nearFull && !s.prizes.full) {
+    const called = new Set(s.called);
+    const near = ctx.active().some((p) => (s.tickets[p.id] || []).some((t) => missing(t, 'full', called) === 1));
+    if (near) {
+      s.nearFull = true;
+      return 'onefull';
+    }
+  }
+  if (s.called.length === 45) return 'half';
+  if (s.called.length >= 6 && s.called.length % 6 === 0 && Math.random() < 0.7) return 'hype';
+  return null;
 }
 
 function startShow(ctx: GameCtx, s: TambolaState, show: ClaimShow) {
@@ -90,6 +106,7 @@ function finish(ctx: GameCtx, s: TambolaState) {
   ctx.end(stars);
   ctx.fx({ t: 'sfx', name: 'fanfare' });
   ctx.fx({ t: 'confetti', big: true });
+  ctx.fx({ t: 'voice', key: 'final' });
 }
 
 export const tambola: GameModule<TambolaState, TambolaSettings> = {
@@ -108,7 +125,7 @@ export const tambola: GameModule<TambolaState, TambolaSettings> = {
       nextAt: 0,
       paused: false,
       pauseLeft: 0,
-      introUntil: now + INTRO_MS,
+      introUntil: now + Math.max(INTRO_MS, ctx.voiceMs('start') + 1200),
       prizes: {},
       show: null,
       queue: [],
@@ -182,8 +199,15 @@ export const tambola: GameModule<TambolaState, TambolaSettings> = {
         return true;
       }
       s.called.push(n);
-      s.nextAt = now + interval(s);
       ctx.fx({ t: 'voice', key: 'n' + n });
+      // give the announcer time to finish (plus a breath) before the next number
+      let talk = ctx.voiceMs('n' + n);
+      const extra = announcement(ctx, s);
+      if (extra) {
+        ctx.fx({ t: 'voice', key: extra });
+        talk += ctx.voiceMs(extra) + 300;
+      }
+      s.nextAt = now + Math.max(interval(s), talk + 1500);
       return true;
     }
     return false;
