@@ -1,6 +1,15 @@
-import { Peer, type DataConnection } from 'peerjs';
+import { Peer, util, type DataConnection } from 'peerjs';
 import type { ClientToHost, HostToClient } from '../shared/types';
 import { HOST_PREFIX, type ClientStatus, type ClientTransport, type HostTransport } from './transport';
+
+// Several STUN servers (find a direct route), plus PeerJS's free TURN relay as a last resort.
+const ICE_CONFIG: RTCConfiguration = {
+  ...(util.defaultConfig as RTCConfiguration),
+  iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+    ...((util.defaultConfig.iceServers || []) as RTCIceServer[]).filter((s) => String(s.urls).indexOf('turn:') >= 0),
+  ],
+};
 
 export class PeerHost implements HostTransport {
   kind = 'p2p' as const;
@@ -15,7 +24,7 @@ export class PeerHost implements HostTransport {
       let attempts = 0;
       const open = () => {
         attempts++;
-        const peer = new Peer(HOST_PREFIX + code, { debug: 0 });
+        const peer = new Peer(HOST_PREFIX + code, { debug: 0, config: ICE_CONFIG });
         this.peer = peer;
         peer.on('open', () => resolve());
         peer.on('connection', (conn) => this.accept(conn));
@@ -94,15 +103,25 @@ export class PeerClient implements ClientTransport {
   private done = false;
 
   connect(code: string) {
-    const peer = new Peer({ debug: 0 });
+    const peer = new Peer({ debug: 0, config: ICE_CONFIG });
     this.peer = peer;
+    let opened = false;
+    // A direct route that never opens usually means the phone can't reach the TV (mobile data, guest Wi-Fi…).
+    const timeout = setTimeout(() => !opened && this.status('error', 'ice'), 15000);
     peer.on('open', () => {
       const conn = peer.connect(HOST_PREFIX + code, { reliable: true, serialization: 'json' });
       this.conn = conn;
-      conn.on('open', () => this.status('open'));
+      conn.on('open', () => {
+        opened = true;
+        clearTimeout(timeout);
+        this.status('open');
+      });
       conn.on('data', (d) => this.onMessage(d as HostToClient));
       conn.on('close', () => this.status('closed'));
-      conn.on('error', () => this.status('error', 'conn'));
+      conn.on('error', (e: any) => this.status('error', e && e.type === 'negotiation-failed' ? 'ice' : 'conn'));
+      conn.on('iceStateChanged' as any, (st: any) => {
+        if (!opened && st === 'failed') this.status('error', 'ice');
+      });
     });
     peer.on('error', (err: any) => {
       const type = err && err.type;

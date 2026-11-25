@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { AVATARS } from '../shared/avatars';
 import { load, params, save } from '../lib/storage';
+import { useNow } from '../lib/hooks';
 import { normalizeCode, randomId } from '../lib/rand';
 import { PlayerClient, type Identity } from './client';
 import { PhoneLobby } from './Lobby';
@@ -138,20 +139,7 @@ function InRoom({ client, onEdit }: { client: PlayerClient; onEdit: () => void }
 
   if (st === 'full') return <Notice icon="😬" title="Room is full!" text="This room already has 20 players. Ask the Captain to remove someone." />;
   if (st === 'kicked') return <Notice icon="👋" title="You were removed from the room" text="By mistake? Refresh the page to join again." />;
-  if (!v) {
-    return (
-      <Notice
-        icon={st === 'no-room' ? '🔍' : '📡'}
-        title={st === 'no-room' ? `Room ${client.code} not found` : 'Connecting…'}
-        text={
-          st === 'no-room'
-            ? "Check the code on the TV. If the TV is still starting up, we'll keep trying…"
-            : 'Your phone and the TV both need internet. Home Wi-Fi works best!'
-        }
-        spinner
-      />
-    );
-  }
+  if (!v) return <Connecting client={client} />;
 
   let body;
   if (v.phase === 'lobby' || !v.gameId || !v.game) body = <PhoneLobby client={client} v={v} onEdit={onEdit} />;
@@ -162,9 +150,47 @@ function InRoom({ client, onEdit }: { client: PlayerClient; onEdit: () => void }
   return (
     <div className={'phone in-room' + (showReactions ? ' has-reactions' : '')}>
       {st !== 'open' && <div className="conn-banner">📡 Connection lost… reconnecting</div>}
+      {v.build !== __BUILD_ID__ && (
+        <div className="conn-banner warn">⚠️ The TV and this phone are on different app versions. Refresh the TV page (choose “Continue last party”), then refresh this page.</div>
+      )}
       {v.phase === 'game' && v.captain && <CaptainBar client={client} v={v} />}
       {body}
       {showReactions && <ReactionBar client={client} />}
+    </div>
+  );
+}
+
+function Connecting({ client }: { client: PlayerClient }) {
+  const now = useNow(1000);
+  const st = client.state;
+  const relay = client.kind === 'ably';
+  const stuck = st !== 'no-room' && (client.failures > 0 || now - client.startedAt > 10000);
+  const cantReach = client.lastError === 'ice';
+  return (
+    <div className="phone center">
+      <div className={'ph-logo' + (stuck ? '' : ' pulse')}>{st === 'no-room' ? '🔍' : stuck ? '🤔' : '📡'}</div>
+      <h1 className="ph-title small">
+        {st === 'no-room' ? `Room ${client.code} not found` : stuck ? (cantReach ? "Can't reach the TV" : 'Still connecting…') : 'Connecting…'}
+      </h1>
+      {st === 'no-room' && <p className="ph-sub">Check the code on the TV. If the TV is still starting up, we'll keep trying…</p>}
+      {stuck && (
+        <div className="card tips">
+          {relay ? (
+            <p>Check that this phone has internet, then try again.</p>
+          ) : (
+            <>
+              <p>
+                <b>Join the same Wi-Fi as the TV</b> and try again.
+              </p>
+              <p className="muted">Mobile data and guest Wi-Fi networks often block a direct phone-to-TV connection.</p>
+            </>
+          )}
+          <button className="btn primary big" onClick={() => client.retryNow()}>
+            🔁 Try again
+          </button>
+        </div>
+      )}
+      <p className="muted conn-mode">Connection: {relay ? 'relay (works on any network)' : 'direct, phone to TV'}</p>
     </div>
   );
 }

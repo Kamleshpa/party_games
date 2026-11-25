@@ -46,7 +46,11 @@ export class LocalClient implements ClientTransport {
   }
 
   send(msg: ClientToHost) {
-    this.bc?.postMessage({ dir: 'c', from: this.id, m: msg });
+    try {
+      this.bc?.postMessage({ dir: 'c', from: this.id, m: msg });
+    } catch {
+      /* channel closed */
+    }
   }
 
   close() {

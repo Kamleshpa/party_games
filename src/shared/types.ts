@@ -23,6 +23,8 @@ export interface PlayerView {
   players: PublicPlayer[];
   settings: Record<GameId, any>;
   music: boolean;
+  /** App build running on the TV; phones warn when theirs differs. */
+  build: string;
   game: any;
 }
 

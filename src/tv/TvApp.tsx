@@ -4,7 +4,7 @@ import { createHostTransport, detectNetKind, type NetKind } from '../net/transpo
 import { GAME_ORDER } from '../games/registry';
 import { load, params, remove } from '../lib/storage';
 import { roomCode } from '../lib/rand';
-import { sfx, unlockAudio } from '../lib/sfx';
+import { audioGraph, sfx, unlockAudio } from '../lib/sfx';
 import { isMuted, loadVoices, playVoice, setMuted, voiceMs } from '../lib/voice';
 import { duckMusic, setMusic, type Track } from '../lib/music';
 import { Emo, setEmojiImages } from '../lib/Emo';
@@ -172,22 +172,69 @@ function TvRoom({ room, net }: { room: Room; net: NetKind }) {
     [room],
   );
 
+  // Corner buttons (music / sound) reachable with the remote: Down arrow focuses them.
+  const [corner, setCorner] = useState<null | 'music' | 'sound'>(null);
+  const cornerRef = useRef(corner);
+  cornerRef.current = corner;
+  const toggleMusic = () => room.captain({ cmd: 'music', on: room.s.music === false });
+  const toggleSound = () => {
+    const m = !isMuted();
+    setMuted(m);
+    setMutedState(m);
+  };
+
+  // Browsers block sound until someone presses a button; tell people if that's the case.
+  const [sound, setSound] = useState<'ok' | 'blocked' | 'unsupported'>('ok');
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock);
+    const id = setInterval(() => {
+      const g = audioGraph();
+      const supported = !!((window as any).AudioContext || (window as any).webkitAudioContext);
+      setSound(!supported ? 'unsupported' : !g || g.ac.state !== 'running' ? 'blocked' : 'ok');
+    }, 1000);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('pointerdown', unlock);
+    };
+  }, []);
+
   // TV remote / keyboard controls (fallback when no captain phone)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      unlockAudio(); // any remote press counts as permission to play sound
       const st = room.s;
       const k = e.key;
+      const code = e.keyCode;
+      const focus = cornerRef.current;
+      if (focus) {
+        if (k === 'ArrowLeft' || k === 'ArrowRight') setCorner(focus === 'music' ? 'sound' : 'music');
+        else if (k === 'Enter') focus === 'music' ? toggleMusic() : toggleSound();
+        else if (k === 'ArrowUp' || k === 'Escape' || k === 'Backspace') setCorner(null);
+        else return;
+        e.preventDefault();
+        return;
+      }
+      if (k === 'm' || code === 403) {
+        toggleMusic(); // 'm' on a keyboard, red button on most TV remotes
+        e.preventDefault();
+        return;
+      }
+      if (k === 'ArrowDown') {
+        setCorner('music');
+        e.preventDefault();
+        return;
+      }
       if (st.phase === 'lobby') {
         const i = GAME_ORDER.indexOf(st.selected);
-        if (k === 'ArrowRight' || k === 'ArrowDown') room.captain({ cmd: 'select', gameId: GAME_ORDER[(i + 1) % GAME_ORDER.length] });
-        else if (k === 'ArrowLeft' || k === 'ArrowUp') room.captain({ cmd: 'select', gameId: GAME_ORDER[(i + GAME_ORDER.length - 1) % GAME_ORDER.length] });
+        if (k === 'ArrowRight') room.captain({ cmd: 'select', gameId: GAME_ORDER[(i + 1) % GAME_ORDER.length] });
+        else if (k === 'ArrowLeft') room.captain({ cmd: 'select', gameId: GAME_ORDER[(i + GAME_ORDER.length - 1) % GAME_ORDER.length] });
         else if (k === 'Enter' && st.players.length > 0) room.captain({ cmd: 'start' });
         else return;
         e.preventDefault();
         return;
       }
       // Remote keys: Play/Pause (LG/Samsung send keyCode 415 / 19), 'n' = next (keyboard only).
-      const code = e.keyCode;
       const paused = !!(st.gameId && st.game && st.game.paused);
       if (st.ended && k === 'Enter') room.captain({ cmd: 'lobby' });
       else if (k === ' ' || k === 'p' || k === 'MediaPlayPause' || code === 10252) room.captain({ cmd: paused ? 'resume' : 'pause' });
@@ -249,23 +296,24 @@ function TvRoom({ room, net }: { room: Room; net: NetKind }) {
           ))}
         </div>
         <Confetti ref={confetti} />
-        <button
-          className="mute-btn music-btn"
-          tabIndex={-1}
-          onClick={() => room.captain({ cmd: 'music', on: s.music === false })}
-        >
+        <button className={'mute-btn music-btn' + (corner === 'music' ? ' focused' : '')} onClick={toggleMusic}>
           <Emo e="🎵" size={40} className={s.music === false ? 'off' : ''} />
         </button>
-        <button
-          className="mute-btn"
-          tabIndex={-1}
-          onClick={() => {
-            setMuted(!muted);
-            setMutedState(!muted);
-          }}
-        >
+        <button className={'mute-btn' + (corner === 'sound' ? ' focused' : '')} onClick={toggleSound}>
           <Emo e={muted ? '🔇' : '🔊'} size={40} />
         </button>
+        {corner && (
+          <div className="corner-tip">
+            {corner === 'music' ? `Music: ${s.music === false ? 'OFF' : 'ON'}` : `Announcer & sounds: ${muted ? 'OFF' : 'ON'}`} · OK to switch · left/right to move · up to go back
+          </div>
+        )}
+        {sound !== 'ok' && (
+          <div className="sound-banner">
+            {sound === 'blocked'
+              ? '🔈 Sound is off — press OK on the remote (or click anywhere) to turn it on'
+              : "🔈 This TV's browser can't play game sounds — try a laptop or streaming stick"}
+          </div>
+        )}
         {net === 'local' && <div className="net-badge">local test mode</div>}
       </div>
     </Stage>

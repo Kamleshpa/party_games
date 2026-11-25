@@ -368,6 +368,7 @@ export class Room {
         players,
         settings: s.settings,
         music: s.music !== false,
+        build: __BUILD_ID__,
         game: mod ? mod.view(this.ctx, s.game, p.id) : null,
       };
       const json = JSON.stringify(v);

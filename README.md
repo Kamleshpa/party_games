@@ -19,7 +19,7 @@ Across the whole evening, players earn ⭐ party stars, shown on the lobby leade
 3. The **first person to join is Captain 👑**. They pick the game and its settings, start it, and get Pause / Skip / Lobby controls on their phone.
 4. Phones can send reactions (😂🔥👏) that float up on the TV.
 
-**TV remote (no Captain needed):** arrow keys to choose a game, **OK** to start, Play/Pause to pause, OK on the results screen to go back to the lobby.
+**TV remote (no Captain needed):** left/right to choose a game, **OK** to start, Play/Pause to pause, OK on the results screen to go back to the lobby. Press **down** to reach the 🎵 music and 🔊 sound buttons in the corner, and **OK** to switch them.
 
 If the TV page gets refreshed, choose **"Continue last party"**. Scores, tickets and the current game come back, and phones reconnect on their own.
 
@@ -34,11 +34,16 @@ Vercel auto-detects **Vite**, so there's nothing to configure. Or deploy from yo
 
 ### How phones talk to the TV
 
-- **Default: peer-to-peer (free, zero setup).** The TV browser runs the game, and phones connect to it directly over WebRTC (using the free public PeerJS service to find each other). This works best when **everyone is on the house Wi-Fi**.
-- **Optional, more reliable: Ably relay.** Some smart-TV browsers have weak or missing WebRTC, and guests on mobile data can sometimes fail to connect. To fix both:
-  1. Create a free account at ably.com, then create an app and copy its **API key**.
-  2. In Vercel → Project → Settings → Environment Variables, add `ABLY_API_KEY` = your key.
-  3. Redeploy. The app detects the key and switches automatically. No code changes.
+- **Without setup: direct, phone to TV (peer-to-peer).** The TV browser runs the game, and phones connect to it directly over WebRTC. It only works reliably when **every phone is on the same home Wi-Fi as the TV**. Phones on mobile data or guest Wi-Fi often get stuck on "Connecting…". The phone then shows a "Can't reach the TV" screen with tips.
+- **Recommended for parties: Ably relay (free).** Everyone connects through Ably's servers, so any network works (Wi-Fi, guest Wi-Fi, mobile data), and it's kinder to smart-TV browsers too:
+  1. Sign up at ably.com (the free plan is plenty), and create an app with any name.
+  2. Open the app's **API Keys** tab and copy the root key (it looks like `abc123.def456:xyz…`).
+  3. In Vercel → your project → **Settings → Environment Variables**, add `ABLY_API_KEY` = that key, then **redeploy** (Deployments → ⋯ → Redeploy).
+  4. Refresh the TV page. On phones, the connecting screen now says "Connection: relay".
+
+  To test the relay locally, put `ABLY_API_KEY=…` in a `.env.local` file (it's git-ignored) and run `npm run dev`.
+
+After every deploy, **refresh the TV page** (choose "Continue last party"). If the TV is still on an older version, phones show a warning banner.
 
 If the TV browser still struggles, open `/tv` on a laptop connected to the TV with HDMI, or on a Fire TV Stick / Chromecast with Google TV browser.
 

@@ -121,7 +121,7 @@ export function Lobby({ room, net }: { room: Room; net: string }) {
               <Emo e="👑" size={44} /> <b style={{ color: captain.color }}>{captain.name}</b> is Captain — pick a game on your phone and hit <b>START</b>!
             </>
           ) : (
-            <>TV remote: arrow keys to choose a game, OK to start</>
+            <>TV remote: left/right to choose a game, OK to start, down for music &amp; sound</>
           )}
         </div>
       </section>

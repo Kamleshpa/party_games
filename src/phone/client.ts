@@ -14,10 +14,14 @@ export interface Identity {
 export class PlayerClient {
   state: ConnState = 'connecting';
   view: PlayerView | null = null;
+  kind: NetKind = 'p2p';
+  /** Why the last attempt failed ('ice' = can't reach the TV directly). */
+  lastError = '';
+  failures = 0;
+  startedAt = Date.now();
   offset = 0;
   version = 0;
   private t: ClientTransport | null = null;
-  private kind: NetKind = 'p2p';
   private lastMsg = 0;
   private connectStarted = 0;
   private retry = 0;
@@ -72,6 +76,7 @@ export class PlayerClient {
     clearTimeout(this.retryTimer);
     this.retryTimer = null;
     if (this.t) this.t.close();
+    this.t = null; // never talk to a closed transport while the new one loads
     this.connectStarted = Date.now();
     const t = await createClientTransport(this.kind);
     if (this.stopped) return t.close();
@@ -84,6 +89,11 @@ export class PlayerClient {
       if (s === 'open') {
         t.send({ k: 'hello', pid: this.ident.pid, name: this.ident.name, avatar: this.ident.avatar });
       } else {
+        if (!this.view) {
+          this.failures++;
+          this.lastError = info || s;
+          this.emit();
+        }
         if (info === 'no-room') this.set('no-room');
         else if (this.state === 'open') this.set('reconnecting');
         this.scheduleRetry();
@@ -148,6 +158,16 @@ export class PlayerClient {
       this.connect();
     }
   };
+
+  /** "Try again" button: reconnect right away. */
+  retryNow() {
+    this.retry = 0;
+    this.startedAt = Date.now();
+    this.failures = 0;
+    this.lastError = '';
+    this.emit();
+    this.connect();
+  }
 
   hostNow() {
     return Date.now() + this.offset;
