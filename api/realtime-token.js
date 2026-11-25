@@ -1,6 +1,7 @@
 // Vercel serverless function. Optional: only used when ABLY_API_KEY is set in the
 // Vercel project's Environment Variables. Without it the app uses peer-to-peer WebRTC.
-import Ably from 'ably';
+// Server side of Ably's SDK split; signing a token request happens locally with the key.
+import { createHttpClient } from '@ably/pubsub-server';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -13,10 +14,14 @@ export default async function handler(req, res) {
     res.status(200).json({ enabled: true });
     return;
   }
-  const clientId = String((req.query && req.query.clientId) || 'anon').slice(0, 64);
+  const clientId = String((req.query && req.query.clientId) || '').slice(0, 64);
+  if (!clientId) {
+    res.status(400).json({ error: 'clientId required' });
+    return;
+  }
   try {
-    const rest = new Ably.Rest({ key });
-    const tokenRequest = await rest.auth.createTokenRequest({
+    const http = createHttpClient({ key });
+    const tokenRequest = await http.auth.createTokenRequest({
       clientId,
       capability: { 'dpn:*': ['publish', 'subscribe'] },
     });

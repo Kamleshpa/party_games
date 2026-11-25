@@ -78,7 +78,7 @@ export class PlayerClient {
     if (this.t) this.t.close();
     this.t = null; // never talk to a closed transport while the new one loads
     this.connectStarted = Date.now();
-    const t = await createClientTransport(this.kind);
+    const t = await createClientTransport(this.kind, this.ident.pid);
     if (this.stopped) return t.close();
     this.t = t;
     t.onMessage = (m) => {

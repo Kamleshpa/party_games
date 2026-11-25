@@ -60,8 +60,8 @@ export async function createHostTransport(kind: NetKind): Promise<HostTransport>
   return new (await import('./peer')).PeerHost();
 }
 
-export async function createClientTransport(kind: NetKind): Promise<ClientTransport> {
+export async function createClientTransport(kind: NetKind, clientId?: string): Promise<ClientTransport> {
   if (kind === 'local') return new (await import('./local')).LocalClient();
-  if (kind === 'ably') return new (await import('./ably')).AblyClient();
+  if (kind === 'ably') return new (await import('./ably')).AblyClient(clientId);
   return new (await import('./peer')).PeerClient();
 }

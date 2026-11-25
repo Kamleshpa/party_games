@@ -1,19 +1,31 @@
-// Optional relay transport. Enabled automatically when ABLY_API_KEY is set in Vercel.
+// Relay transport. Enabled automatically when ABLY_API_KEY is set in Vercel.
 // Uses plain WebSockets (with long-polling fallback), so it works on smart-TV browsers
-// where WebRTC is missing or flaky, and on phones using mobile data.
+// where WebRTC is missing or flaky, and on phones using mobile data or guest Wi-Fi.
+// Uses Ably's device SDK: TV and phones are end-user devices. Accounts billed by monthly
+// active users reject the old `ably` package and need a stable client ID per device.
 import type { ClientToHost, HostToClient } from '../shared/types';
 import { randomId } from '../lib/rand';
+import { load, save } from '../lib/storage';
 import type { ClientStatus, ClientTransport, HostTransport } from './transport';
 
 async function realtime(clientId: string): Promise<any> {
-  const mod: any = await import('ably');
-  const Realtime = mod.Realtime || (mod.default && mod.default.Realtime);
-  return new Realtime({
+  const { createClient } = await import('@ably/pubsub-device');
+  return createClient({
     authUrl: '/api/realtime-token',
     authParams: { clientId },
     clientId,
     echoMessages: false,
   });
+}
+
+/** One stable ID per TV browser, so a TV counts as one monthly user however often it reloads. */
+function tvId(): string {
+  let id = load<string>('dpn-tv-id', '');
+  if (!id) {
+    id = 'tv-' + randomId(10);
+    save('dpn-tv-id', id);
+  }
+  return id;
 }
 
 const CHUNK = 12000; // stay well under Ably's message size limit
@@ -28,7 +40,7 @@ export class AblyHost implements HostTransport {
   private scheduled = false;
 
   async start(code: string) {
-    this.rt = await realtime('host-' + code + '-' + randomId(4));
+    this.rt = await realtime(tvId());
     this.ch = this.rt.channels.get('dpn:' + code);
     await this.ch.subscribe('c', (msg: any) => {
       const d = msg.data;
@@ -79,8 +91,13 @@ export class AblyClient implements ClientTransport {
   onStatus: (status: ClientStatus, info?: string) => void = () => {};
   private rt: any = null;
   private ch: any = null;
-  private id = randomId();
+  private id: string;
   private done = false;
+
+  /** clientId: the phone's stable player ID (also its address on the channel). */
+  constructor(clientId?: string) {
+    this.id = clientId || randomId();
+  }
 
   connect(code: string) {
     realtime(this.id)

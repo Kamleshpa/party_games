@@ -11,7 +11,8 @@
     "gen:audio": "bash scripts/gen-tambola-audio.sh"
   },
   "dependencies": {
-    "ably": "^2.30.0",
+    "@ably/pubsub-device": "^3.2.0",
+    "@ably/pubsub-server": "^3.2.0",
     "peerjs": "^1.5.5",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
