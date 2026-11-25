@@ -1,14 +1,14 @@
 // Tambola announcer. Plays pre-generated clips from /public/audio/tambola (see
 // scripts/gen-tambola-audio.mjs, which writes manifest.json), one at a time, ducking
 // the background music while speaking. Falls back to the browser's speech engine.
-import { callSpoken, EXTRA_CLIPS, HYPE } from '../games/tambola/calls';
+import { clipName, clipText, LINES } from '../games/tambola/calls';
 import { duckMusic } from './music';
 
 interface Manifest {
   ext: string;
   voice?: string;
   durations: Record<string, number>; // seconds, by file name
-  hype: number;
+  pools?: Record<string, number>; // variants recorded per event line
 }
 
 let manifest: Manifest | null = null;
@@ -45,41 +45,37 @@ export function loadVoices() {
     .catch(() => {});
 }
 
-/** Clip file name for a voice key: 'n25' -> '25', 'hype' -> 'hype3' (random). */
+const lastPick: Record<string, number> = {};
+
+function variants(key: string): number {
+  const recorded = manifest && manifest.pools && manifest.pools[key];
+  return recorded || (LINES[key] ? LINES[key].length : 0);
+}
+
+/** Clip file for a voice key: 'n25' -> '25'; 'bogey' -> 'bogey-2' (random, never the same one twice running). */
 function fileFor(key: string): string {
-  if (key[0] === 'n' && /^n\d+$/.test(key)) return key.slice(1);
-  if (key === 'hype') return 'hype' + (1 + Math.floor(Math.random() * (manifest ? manifest.hype : HYPE.length)));
-  return key;
+  if (/^n\d+$/.test(key)) return key.slice(1);
+  const count = variants(key);
+  if (!count) return key;
+  let i = 1 + Math.floor(Math.random() * count);
+  if (count > 1 && i === lastPick[key]) i = (i % count) + 1;
+  lastPick[key] = i;
+  return clipName(key, i);
 }
 
-function textFor(file: string): string {
-  if (/^\d+$/.test(file)) return callSpoken(Number(file));
-  if (file.indexOf('hype') === 0) return HYPE[Number(file.slice(4)) - 1] || '';
-  return EXTRA_CLIPS[file] || '';
-}
-
-/** How long a line takes to say (ms), so the game can wait for the announcer. */
-export function voiceMs(key: string): number {
-  if (muted) return 0;
-  if (key === 'hype') return manifest ? avgHype() : 2500;
-  const file = fileFor(key);
+function fileMs(file: string): number {
   const d = manifest && manifest.durations[file];
   if (d) return Math.round(d * 1000);
-  return Math.round(textFor(file).length * 75); // rough speaking rate
+  return Math.round(clipText(file).length * 75); // rough speaking rate
 }
 
-function avgHype(): number {
-  if (!manifest) return 2500;
-  let sum = 0;
-  let n = 0;
-  for (let i = 1; i <= manifest.hype; i++) {
-    const d = manifest.durations['hype' + i];
-    if (d) {
-      sum += d;
-      n++;
-    }
-  }
-  return n ? Math.round((sum / n) * 1000) : 2500;
+/** How long a line takes to say (ms), so the game can wait for the announcer. Event lines: the longest variant. */
+export function voiceMs(key: string): number {
+  if (muted) return 0;
+  if (/^n\d+$/.test(key)) return fileMs(key.slice(1));
+  let max = 0;
+  for (let i = 1; i <= variants(key); i++) max = Math.max(max, fileMs(clipName(key, i)));
+  return max;
 }
 
 export function playVoice(key: string) {
@@ -108,17 +104,17 @@ function next() {
     next();
   };
   // safety net in case 'ended' never fires
-  setTimeout(done, voiceMs(file[0] >= '0' && file[0] <= '9' ? 'n' + file : file) + 2500);
-  if (!manifest) return speak(textFor(file), done);
+  setTimeout(done, fileMs(file) + 2500);
+  if (!manifest) return speak(clipText(file), done);
   try {
     const a = new Audio('/audio/tambola/' + file + '.' + manifest.ext);
     current = a;
     a.onended = done;
-    a.onerror = () => speak(textFor(file), done);
+    a.onerror = () => speak(clipText(file), done);
     const p = a.play();
-    if (p && p.catch) p.catch(() => speak(textFor(file), done));
+    if (p && p.catch) p.catch(() => speak(clipText(file), done));
   } catch {
-    speak(textFor(file), done);
+    speak(clipText(file), done);
   }
 }
 

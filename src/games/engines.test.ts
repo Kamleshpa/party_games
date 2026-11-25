@@ -5,7 +5,7 @@ import { emoji } from './emoji/engine';
 import { quiz, buildQuiz } from './quiz/engine';
 import { EMOJI_MOVIES } from './emoji/data';
 import { QUIZ } from './quiz/data';
-import { callFun, callSpoken, callTitle } from './tambola/calls';
+import { callFun, callSpoken, callTitle, clipName, clipText, LINES } from './tambola/calls';
 import type { Fx, GameCtx, Player } from './types';
 
 function fakeCtx(n = 3) {
@@ -72,6 +72,16 @@ describe('tambola tickets', () => {
     expect(callSpoken(25)).toContain('Two and five… twenty-five!');
     expect(callSpoken(25)).toContain('Quarter century');
     for (let n = 1; n <= 90; n++) expect(callFun(n).length).toBeGreaterThan(3);
+  });
+
+  it('has announcer lines for every game moment', () => {
+    const keys = ['start', 'early5', 'top', 'middle', 'bottom', 'corners', 'full', 'bogey', 'onefull', 'half', 'final', 'hype'];
+    for (const k of keys) {
+      expect(LINES[k].length).toBeGreaterThan(0);
+      LINES[k].forEach((t, i) => expect(clipText(clipName(k, i + 1))).toBe(t));
+    }
+    expect(clipText('25')).toBe(callSpoken(25));
+    expect(clipText('bogey-99')).toBe('');
   });
 });
 

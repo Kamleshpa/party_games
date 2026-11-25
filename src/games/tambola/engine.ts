@@ -84,7 +84,9 @@ function announcement(ctx: GameCtx, s: TambolaState): string | null {
 function startShow(ctx: GameCtx, s: TambolaState, show: ClaimShow) {
   const now = ctx.now();
   show.at = now;
-  show.until = now + SUSPENSE_MS + (show.valid ? SHOW_OK_MS : SHOW_BOGEY_MS);
+  // keep the claim on screen until the announcer has finished the line
+  const talk = ctx.voiceMs(show.valid ? show.prize : 'bogey') + 800;
+  show.until = now + SUSPENSE_MS + Math.max(show.valid ? SHOW_OK_MS : SHOW_BOGEY_MS, talk);
   show.revealed = false;
   s.show = show;
   ctx.fx({ t: 'sfx', name: 'drumroll' });

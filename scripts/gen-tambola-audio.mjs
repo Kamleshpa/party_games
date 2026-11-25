@@ -1,10 +1,11 @@
 // Generates the Tambola announcer clips + manifest.json into public/audio/tambola.
 //
-// Real, human-sounding voice (pick one; you need your own API key):
-//   ELEVENLABS_API_KEY=xxx ELEVENLABS_VOICE_ID=yyy npm run gen:audio
-//   OPENAI_API_KEY=xxx [OPENAI_VOICE=ash] npm run gen:audio
-// Free fallback (robotic macOS voice):
-//   npm run gen:audio
+// Real, human-sounding voice: put your own key in .env.local (git-ignored, never committed),
+//   OPENAI_API_KEY=sk-...            (recommended: follows the PERSONA directions below)
+//   ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=...
+// then run:  npm run gen:audio
+// Options: OPENAI_VOICE=verse (default ash), VOICE_PROVIDER=openai|elevenlabs|mac.
+// Without a key it falls back to the robotic macOS voice.
 //
 // Only clips whose text (or voice) changed are re-generated, so re-runs are cheap.
 // FORCE=1 re-records everything. Commit public/audio/tambola afterwards so Vercel serves it.
@@ -13,11 +14,17 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { callSpoken, EXTRA_CLIPS, HYPE } from '../src/games/tambola/calls.ts';
+import { callSpoken, clipName, LINES } from '../src/games/tambola/calls.ts';
+
+try {
+  process.loadEnvFile('.env.local'); // your API keys; variables already set in the shell win
+} catch {
+  /* no .env.local */
+}
 
 const OUT = 'public/audio/tambola';
 const env = process.env;
-const provider = env.ELEVENLABS_API_KEY ? 'elevenlabs' : env.OPENAI_API_KEY ? 'openai' : 'mac';
+const provider = env.VOICE_PROVIDER || (env.OPENAI_API_KEY ? 'openai' : env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'mac');
 const ext = provider === 'mac' ? 'm4a' : 'mp3';
 
 const ELEVEN_VOICE = env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'; // premade "Adam"; pick an Indian voice in the Voice Library
@@ -28,16 +35,23 @@ const MAC_VOICE = env.VOICE || 'Rishi';
 const label =
   provider === 'elevenlabs' ? `elevenlabs:${ELEVEN_VOICE}:${ELEVEN_MODEL}` : provider === 'openai' ? `openai:${OPENAI_VOICE}:${OPENAI_MODEL}` : `mac:${MAC_VOICE}`;
 
+// Delivery direction for OpenAI's TTS. An original character, not an impression of anyone real.
 const PERSONA =
-  'You are the host of a high-energy Indian TV game show, calling Tambola (Housie) numbers at a family party. ' +
-  'Warm Indian-English accent. Big, theatrical, playful energy: build a little suspense before the number, ' +
-  'punch the number itself loud and clear, then deliver the fun line with a big smile, like you are cracking up the room. ' +
-  'Never flat, never robotic.';
+  'You are an original, zany comedy commentator on a slapstick TV game show, calling Tambola (Housie) numbers ' +
+  'live at a desi family party in America. Accent: warm, natural Indian English; say the Hindi words ' +
+  '(arre, bhai sahab, kya baat hai, bechara, shabash, haaye, dhishoom, ekdum) the authentic Hindi way. ' +
+  'Delivery: fast, punchy running commentary with big swings in energy. Drop to a sly, suspenseful hush before a number, ' +
+  'punch the number itself loud and crystal clear, then fire off the joke with mock drama: fake shock, fake sympathy, ' +
+  'cheeky teasing, as if you can barely stop yourself from laughing. Stretch the sound words like dhishoom, whoosh and oho. ' +
+  'A huge grin in the voice the whole time. Never flat, never slow, never robotic.';
 
 const jobs = [];
 for (let n = 1; n <= 90; n++) jobs.push([String(n), callSpoken(n)]);
-for (const [k, t] of Object.entries(EXTRA_CLIPS)) jobs.push([k, t]);
-HYPE.forEach((t, i) => jobs.push(['hype' + (i + 1), t]));
+const pools = {};
+for (const [key, texts] of Object.entries(LINES)) {
+  pools[key] = texts.length;
+  texts.forEach((t, i) => jobs.push([clipName(key, i + 1), t]));
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const hash = (s) => createHash('sha1').update(label + '|' + s).digest('hex').slice(0, 12);
@@ -77,7 +91,9 @@ async function retry(fn) {
     try {
       return await fn();
     } catch (e) {
-      if (i >= 3 || !/ (429|5\d\d):/.test(String(e.message))) throw e;
+      const msg = String(e.message);
+      // 429 is also "out of credits", which waiting won't fix
+      if (i >= 3 || !/ (429|5\d\d):/.test(msg) || /insufficient_quota|credit_balance/.test(msg)) throw e;
       await sleep(2500 * (i + 1));
     }
   }
@@ -95,16 +111,28 @@ function seconds(file) {
 
 mkdirSync(OUT, { recursive: true });
 const manifestPath = join(OUT, 'manifest.json');
-const old = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
-const oldHashes = old.ext === ext ? old.hashes || {} : {};
-for (const f of readdirSync(OUT)) if (/\.(m4a|mp3)$/.test(f) && !f.endsWith('.' + ext)) unlinkSync(join(OUT, f));
+// progress of an interrupted run that switched voice format, so a re-run resumes
+const partialPath = 'node_modules/.cache/tambola-audio-partial.json';
+const readJson = (p) => {
+  try {
+    return JSON.parse(readFileSync(p, 'utf8'));
+  } catch {
+    return {};
+  }
+};
+const old = readJson(manifestPath);
+const partial = readJson(partialPath);
+const oldHashes = { ...(old.ext === ext ? old.hashes : {}), ...(partial.ext === ext ? partial.hashes : {}) };
 
 const todo = jobs.filter(([name, text]) => env.FORCE === '1' || oldHashes[name] !== hash(text) || !existsSync(join(OUT, `${name}.${ext}`)));
 const chars = todo.reduce((n, [, t]) => n + t.length, 0);
 console.log(`Voice: ${label}\nClips to record: ${todo.length} of ${jobs.length} (${chars} characters)`);
+if (provider === 'mac') console.log('Tip: add OPENAI_API_KEY=... to .env.local for a real, expressive voice.');
 
 const tmp = mkdtempSync(join(tmpdir(), 'tambola-'));
-const hashes = { ...oldHashes };
+const hashes = {};
+for (const [name] of jobs) if (oldHashes[name]) hashes[name] = oldHashes[name];
+let ok = false;
 try {
   for (const [name, text] of todo) {
     const file = join(OUT, `${name}.${ext}`);
@@ -113,13 +141,25 @@ try {
     hashes[name] = hash(text);
     process.stdout.write('.');
   }
+  ok = true;
 } finally {
   rmSync(tmp, { recursive: true, force: true });
-  const durations = {};
-  for (const [name] of jobs) {
-    const file = join(OUT, `${name}.${ext}`);
-    if (existsSync(file)) durations[name] = Number(seconds(file).toFixed(2));
+  if (ok || old.ext === ext) {
+    // remove clips from another voice format or for lines that no longer exist
+    const wanted = new Set(jobs.map(([name]) => `${name}.${ext}`));
+    for (const f of readdirSync(OUT)) if (/\.(m4a|mp3)$/.test(f) && !wanted.has(f)) unlinkSync(join(OUT, f));
+    const durations = {};
+    for (const [name] of jobs) {
+      const file = join(OUT, `${name}.${ext}`);
+      if (existsSync(file)) durations[name] = Number(seconds(file).toFixed(2));
+    }
+    writeFileSync(manifestPath, JSON.stringify({ ext, voice: label, pools, durations, hashes }, null, 1) + '\n');
+    rmSync(partialPath, { force: true });
+  } else {
+    // switching voice and stopped part-way: the TV keeps the previous voice until a run completes
+    mkdirSync('node_modules/.cache', { recursive: true });
+    writeFileSync(partialPath, JSON.stringify({ ext, hashes }));
+    console.log('\nStopped part-way. The game still uses the previous voice; run the same command again to resume.');
   }
-  writeFileSync(manifestPath, JSON.stringify({ ext, voice: label, hype: HYPE.length, durations, hashes }, null, 1) + '\n');
 }
 console.log(`\nDone. ${Object.keys(hashes).length} clips in ${OUT}`);

@@ -65,23 +65,20 @@ npm run build
 
 ## Making the announcer sound like a real person
 
-The clips in `public/audio/tambola` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds robotic. For a real, lively game-show host, generate them once with a neural voice service. The full script is about 6,300 characters.
+The announcer is an original comic game-show commentator: rapid-fire, punny, mock-dramatic, English with desi masala. The clips in `public/audio/tambola` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-tambola-audio.mjs` (PERSONA). The full script is under 10,000 characters and costs well under a dollar.
 
-**Option A: ElevenLabs (most human-sounding).** The free plan covers one full recording.
-1. Sign up at elevenlabs.io and copy your API key (Profile → API Keys).
-2. Open the **Voice Library** and search for something like "Indian", "energetic" or "host". Add a voice you like to My Voices and copy its **Voice ID**.
-3. Run:
-   ```bash
-   ELEVENLABS_API_KEY=your_key ELEVENLABS_VOICE_ID=the_voice_id npm run gen:audio
+1. Get an API key at platform.openai.com → API keys (the account needs a little prepaid credit).
+2. Put it in a file called `.env.local` in the project folder. That file is git-ignored, so the key never goes to GitHub or Vercel:
    ```
+   OPENAI_API_KEY=sk-...
+   ```
+3. Record:
+   ```bash
+   npm run gen:audio
+   ```
+4. Commit and push `public/audio/tambola`, and Vercel serves the new voice. Refresh the TV page.
 
-**Option B: OpenAI.** The voice is directed to act as an "excited Indian game-show host". It costs a few cents.
-```bash
-OPENAI_API_KEY=your_key npm run gen:audio
-```
-To try other voices, add `OPENAI_VOICE=coral` (or `ash`, `ballad`, `verse`, `sage`) and `FORCE=1` to re-record everything.
-
-Then commit and push `public/audio/tambola`, and Vercel serves the new voice. The key is only used on your laptop for this one step. Don't put it in the code or in Vercel.
+If it stops part-way (network, rate limit), run it again: it resumes, and the game keeps the old voice until a run completes. To try a different voice, add `OPENAI_VOICE=verse FORCE=1` in front of the command (other voices: `ash` (default), `ballad`, `coral`, `sage`). ElevenLabs also works: put `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in `.env.local` and run with `VOICE_PROVIDER=elevenlabs`.
 
 ### Layout
 ```
