@@ -6,6 +6,8 @@ import { randInt, randomId } from '../../lib/rand';
 export type QKind = 'mcq' | 'tf' | 'year';
 
 export interface RunQ {
+  /** Stable id of the pool item, remembered once shown so a restarted game picks fresh ones. */
+  id?: string;
   kind: QKind;
   prompt?: string;
   emojis?: string[];
@@ -70,7 +72,8 @@ export type QuizGame = 'emoji' | 'quiz' | 'filmy';
 export interface QuizConfig<S> {
   game: QuizGame;
   defaults: S;
-  build(settings: S): RunQ[];
+  /** `seen`: ids already shown on this TV, oldest first (pick with freshFirst). */
+  build(settings: S, seen: string[]): RunQ[];
   hints: number;
   introMs: number;
   boardEvery: number;
@@ -146,6 +149,7 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
     s.cueI = 0;
     s.subsAt = 0;
     const q = s.qs[qi];
+    if (q.id && ctx.markSeen) ctx.markSeen(cfg.game, q.id);
     if (q.audio) {
       const talk = ctx.voiceMs(q.audio);
       s.cues.push(CUE_MS);
@@ -242,7 +246,7 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
         id: randomId(6),
         game: cfg.game,
         phase: 'intro',
-        qs: cfg.build(settings),
+        qs: cfg.build(settings, ctx.seen ? ctx.seen(cfg.game) : []),
         qi: 0,
         startedAt: now,
         endsAt: now + cfg.introMs,

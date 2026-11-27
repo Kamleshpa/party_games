@@ -5,12 +5,15 @@ import type { Fx, GameCtx, Player } from '../games/types';
 import { MODULES } from '../games/registry';
 import { COLORS, REACTIONS } from '../shared/avatars';
 import { randomId } from '../lib/rand';
-import { save } from '../lib/storage';
+import { load, save } from '../lib/storage';
 
 export const MAX_PLAYERS = 20;
 const HEARTBEAT_MS = 4000;
 const STALE_MS = 15000;
 export const SAVE_KEY = 'dpn-host-v1';
+/** Questions already shown on this TV, per game. Kept across parties so nothing repeats until a pool runs out. */
+export const SEEN_KEY = 'dpn-seen-v1';
+const SEEN_MAX = 3000;
 
 export interface RoomState {
   v: 1;
@@ -90,6 +93,14 @@ export class Room {
         this.changed();
       },
       voiceMs: (key) => (this.opts.voiceMs ? this.opts.voiceMs(key) : 0),
+      seen: (game) => load<Record<string, string[]>>(SEEN_KEY, {})[game] || [],
+      markSeen: (game, id) => {
+        const all = load<Record<string, string[]>>(SEEN_KEY, {});
+        const list = (all[game] || []).filter((x) => x !== id);
+        list.push(id);
+        all[game] = list.slice(-SEEN_MAX);
+        save(SEEN_KEY, all);
+      },
     };
   }
 

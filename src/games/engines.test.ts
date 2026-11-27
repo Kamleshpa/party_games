@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeTicket, missing, ticketNumbers } from './tambola/tickets';
 import { tambola, type TambolaState } from './tambola/engine';
-import { emoji } from './emoji/engine';
+import { emoji, buildEmojiQuestions } from './emoji/engine';
 import { quiz, buildQuiz } from './quiz/engine';
 import { EMOJI_MOVIES } from './emoji/data';
 import { QUIZ } from './quiz/data';
@@ -9,6 +9,7 @@ import { filmy, buildFilmyQuestions } from './filmy/engine';
 import { DIALOGUES, FILMS, SONGS, dialogueClip, filmyClipText, songClip } from './filmy/data';
 import { callFun, callSpoken, callTitle, clipName, clipText, LINES, SPOKEN } from './tambola/calls';
 import type { Fx, GameCtx, Player } from './types';
+import { freshFirst } from '../lib/rand';
 
 function fakeCtx(n = 3) {
   let now = 1_000_000;
@@ -279,5 +280,52 @@ describe('filmy dialogues', () => {
     advance(12000);
     filmy.tick(ctx, s);
     expect(s.subsAt).toBe(0);
+  });
+});
+
+describe('no repeats when a game is restarted', () => {
+  const ids = (qs: { id?: string }[]) => qs.map((q) => q.id!);
+
+  it('has a big enough pool for every question game', () => {
+    expect(EMOJI_MOVIES.length).toBeGreaterThanOrEqual(380);
+    expect(QUIZ.length).toBeGreaterThanOrEqual(456);
+    expect(DIALOGUES.length + SONGS.length).toBeGreaterThanOrEqual(428);
+    for (const list of [EMOJI_MOVIES.map((m) => m.a), QUIZ.map((q) => q.q)]) expect(new Set(list).size).toBe(list.length);
+  });
+
+  it('picks only unseen questions while there are enough left', () => {
+    const builds: [string, (seen: string[]) => { id?: string }[]][] = [
+      ['emoji', (seen) => buildEmojiQuestions({ rounds: 16, cat: 'mix' }, seen)],
+      ['quiz', (seen) => buildQuiz({ rounds: 16 }, seen)],
+      ['filmy', (seen) => buildFilmyQuestions({ rounds: 16, mode: 'mix' }, seen)],
+    ];
+    for (const [, build] of builds) {
+      const seen: string[] = [];
+      for (let game = 0; game < 3; game++) {
+        const got = ids(build(seen));
+        expect(got.every(Boolean)).toBe(true);
+        expect(got.filter((id) => seen.indexOf(id) >= 0)).toEqual([]);
+        seen.push(...got);
+      }
+    }
+  });
+
+  it('reuses the longest-ago questions once the pool runs out', () => {
+    expect(freshFirst(['a', 'b', 'c'], (x) => x, ['b', 'c', 'a'], 2)).toEqual(['b', 'c']);
+    expect(freshFirst(['a', 'b', 'c', 'd'], (x) => x, ['b', 'c', 'a'], 1)).toEqual(['d']);
+  });
+
+  it('remembers each question once it is shown', () => {
+    const { ctx, advance } = fakeCtx(2);
+    const store: Record<string, string[]> = {};
+    ctx.seen = (g) => store[g] || [];
+    ctx.markSeen = (g, id) => (store[g] = (store[g] || []).filter((x) => x !== id).concat(id));
+    const s = emoji.create(ctx, { rounds: 8, cat: 'mix' });
+    expect(store.emoji).toBeUndefined(); // nothing shown yet
+    advance(12000);
+    emoji.tick(ctx, s);
+    expect(store.emoji).toEqual([s.qs[0].id]);
+    const again = emoji.create(ctx, { rounds: 8, cat: 'mix' });
+    expect(ids(again.qs)).not.toContain(s.qs[0].id);
   });
 });

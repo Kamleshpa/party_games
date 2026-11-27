@@ -44,6 +44,9 @@ export interface GameCtx {
   end(stars: Record<string, number>): void;
   /** How long the announcer needs for a voice line (ms); 0 when muted/unknown. */
   voiceMs(key: string): number;
+  /** Question ids this TV has already shown for a game, oldest first (so restarts don't repeat). */
+  seen?(game: string): string[];
+  markSeen?(game: string, id: string): void;
 }
 
 export interface GameModule<S = any, Settings = any> {

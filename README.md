@@ -60,6 +60,10 @@ npm run build
 **Test on one computer without phones:** open `http://localhost:5173/tv?net=local&bots=8` (8 bot players auto-play). Then open phone tabs at `http://localhost:5173/?r=CODE&net=local&p=1` (use `p=2`, `p=3`… for more players).
 
 ### Adding your own content
+Question pools: Emoji Movie 380 films, 90s Kids Quiz 456 questions, Filmy Dialogues 50 dialogues + 457 songs.
+
+**No repeats:** the TV remembers every question it has shown (in its browser storage, kept across parties), so restarting a game or starting a new party picks questions nobody has seen yet. Once a pool runs out, the ones shown longest ago come back first. To start over, clear the site data for the game in the TV browser.
+
 - Emoji movies: `src/games/emoji/data.ts`
 - Quiz questions: `src/games/quiz/data.ts` (for multiple choice, put the correct answer **first**; options get shuffled)
 - Film dialogues and songs: `src/games/filmy/data.ts`. Add the film to `FILMS` too (its year and stars are the hint). Wrong options are films from about the same years. Then regenerate the voice clips.
@@ -69,7 +73,7 @@ npm run build
 
 The announcer is an original comic Delhi tapori host who talks in Hindi; only the number call itself is in English. The TV screen keeps showing the English lines (`FUN` in `calls.ts`); the spoken Hindi lines are `SPOKEN` and `LINES`. The same host introduces the Filmy Dialogues song rounds, and a dramatic narrator reads the film dialogues (a woman's voice for lines a woman says in the film).
 
-The clips in `public/audio/tambola` and `public/audio/filmy` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-audio.mjs` (PERSONA for the host, DIALOGUE for the narrator). Everything together is about 15,000 characters and costs well under a dollar.
+The clips in `public/audio/tambola` and `public/audio/filmy` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-audio.mjs` (PERSONA for the host, DIALOGUE for the narrator). Everything together is about 45,000 characters and costs around a dollar.
 
 1. Get an API key at platform.openai.com → API keys (the account needs a little prepaid credit).
 2. Put it in a file called `.env.local` in the project folder. That file is git-ignored, so the key never goes to GitHub or Vercel:

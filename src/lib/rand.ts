@@ -34,3 +34,20 @@ export function roomCode(): string {
 export function normalizeCode(s: string): string {
   return s.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
 }
+
+/**
+ * Up to n items, never-shown ones first (in random order), then the ones shown longest ago.
+ * `seen` lists ids oldest first, so a restarted game doesn't repeat questions until the pool runs out.
+ */
+export function freshFirst<T>(items: T[], id: (t: T) => string, seen: string[], n: number): T[] {
+  const when = new Map<string, number>();
+  seen.forEach((k, i) => when.set(k, i));
+  return items
+    .map((t) => {
+      const w = when.get(id(t));
+      return { t, w: w === undefined ? -1 : w, r: Math.random() };
+    })
+    .sort((a, b) => a.w - b.w || a.r - b.r)
+    .slice(0, n)
+    .map((x) => x.t);
+}

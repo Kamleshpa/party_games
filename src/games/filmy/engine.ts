@@ -1,5 +1,5 @@
 import { makeQuizModule, type RunQ } from '../common/quizRunner';
-import { shuffle } from '../../lib/rand';
+import { freshFirst, shuffle } from '../../lib/rand';
 import { DIALOGUES, FILMS, SONGS, dialogueClip, songClip } from './data';
 
 export interface FilmySettings {
@@ -25,13 +25,13 @@ function question(film: string): Pick<RunQ, 'kind' | 'options' | 'correct' | 'ex
   return { kind: 'mcq', options, correct: options.indexOf(film), extra: info, hint: info };
 }
 
-export function buildFilmyQuestions(settings: FilmySettings): RunQ[] {
+export function buildFilmyQuestions(settings: FilmySettings, seen: string[] = []): RunQ[] {
   const n = settings.rounds;
   const nSongs = settings.mode === 'songs' ? n : settings.mode === 'dialogues' ? 0 : Math.floor(n / 2);
-  const dialogues: RunQ[] = shuffle(DIALOGUES)
-    .slice(0, n - nSongs)
+  const dialogues: RunQ[] = shuffle(freshFirst(DIALOGUES, dialogueClip, seen, n - nSongs))
     .map((d) => ({
       ...question(d.f),
+      id: dialogueClip(d),
       cat: 'Dialogue',
       icon: '🎙️',
       duration: DIALOGUE_MS,
@@ -40,10 +40,10 @@ export function buildFilmyQuestions(settings: FilmySettings): RunQ[] {
       quote: d.line,
       tr: d.en === d.line ? undefined : d.en,
     }));
-  const songs: RunQ[] = shuffle(SONGS)
-    .slice(0, nSongs)
+  const songs: RunQ[] = shuffle(freshFirst(SONGS, songClip, seen, nSongs))
     .map((s) => ({
       ...question(s.f),
+      id: songClip(s),
       cat: 'Song round',
       icon: '🎵',
       duration: SONG_MS,

@@ -1,5 +1,5 @@
 import { makeQuizModule, type RunQ } from '../common/quizRunner';
-import { shuffle } from '../../lib/rand';
+import { freshFirst, shuffle } from '../../lib/rand';
 import { EMOJI_MOVIES, type EmojiCat } from './data';
 
 export interface EmojiSettings {
@@ -13,15 +13,16 @@ const CAT_LABEL: Record<EmojiCat, { name: string; icon: string }> = {
   kids: { name: 'Kids & Hollywood', icon: '🧸' },
 };
 
-export function buildEmojiQuestions(settings: EmojiSettings): RunQ[] {
+export function buildEmojiQuestions(settings: EmojiSettings, seen: string[] = []): RunQ[] {
   const allowed: EmojiCat[] = settings.cat === 'kids' ? ['kids'] : settings.cat === 'bolly' ? ['classic', 'new'] : ['classic', 'new', 'kids'];
-  const pool = shuffle(EMOJI_MOVIES.filter((m) => allowed.indexOf(m.c) >= 0));
-  const chosen = pool.slice(0, Math.min(settings.rounds, pool.length));
+  const pool = EMOJI_MOVIES.filter((m) => allowed.indexOf(m.c) >= 0);
+  const chosen = shuffle(freshFirst(pool, (m) => m.a, seen, settings.rounds));
   return chosen.map((m, i) => {
     const sameCat = EMOJI_MOVIES.filter((x) => x.c === m.c && x.a !== m.a);
     const distractors = shuffle(sameCat).slice(0, 3).map((x) => x.a);
     const options = shuffle([m.a].concat(distractors));
     return {
+      id: m.a,
       kind: 'mcq',
       emojis: m.e,
       options,

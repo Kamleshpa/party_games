@@ -159,7 +159,7 @@ async function record(pack, jobs, extra) {
   for (const [name] of jobs) if (oldHashes[name]) hashes[name] = oldHashes[name];
   let ok = false;
   try {
-    for (const [name, text, voice, instructions] of todo) {
+    const one = async ([name, text, voice, instructions]) => {
       const file = join(OUT, `${name}.${ext}`);
       if (provider === 'mac') mac(text, file, tmp);
       else {
@@ -172,7 +172,23 @@ async function record(pack, jobs, extra) {
       }
       hashes[name] = hash(text, voice);
       process.stdout.write('.');
-    }
+    };
+    // a few requests at a time (the Mac voice runs one by one)
+    const queue = todo.slice();
+    const workers = provider === 'mac' ? 1 : Number(env.CONCURRENCY || 4);
+    let failed = null;
+    await Promise.all(
+      Array.from({ length: workers }, async () => {
+        while (queue.length && !failed) {
+          try {
+            await one(queue.shift());
+          } catch (e) {
+            failed = failed || e; // let the other workers finish their clip, then stop
+          }
+        }
+      }),
+    );
+    if (failed) throw failed;
     ok = true;
   } finally {
     rmSync(tmp, { recursive: true, force: true });
