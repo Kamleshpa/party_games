@@ -65,7 +65,7 @@ npm run build
 
 ## Making the announcer sound like a real person
 
-The announcer is an original comic game-show commentator: rapid-fire, punny, mock-dramatic, English with desi masala. The clips in `public/audio/tambola` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-tambola-audio.mjs` (PERSONA). The full script is under 10,000 characters and costs well under a dollar.
+The announcer is an original comic Delhi tapori host who talks in Hindi; only the number call itself is in English. The TV screen keeps showing the English lines (`FUN` in `calls.ts`); the spoken Hindi lines are `SPOKEN` and `LINES`. The clips in `public/audio/tambola` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-tambola-audio.mjs` (PERSONA). The full script is under 10,000 characters and costs well under a dollar.
 
 1. Get an API key at platform.openai.com → API keys (the account needs a little prepaid credit).
 2. Put it in a file called `.env.local` in the project folder. That file is git-ignored, so the key never goes to GitHub or Vercel:
@@ -78,7 +78,7 @@ The announcer is an original comic game-show commentator: rapid-fire, punny, moc
    ```
 4. Commit and push `public/audio/tambola`, and Vercel serves the new voice. Refresh the TV page.
 
-If it stops part-way (network, rate limit), run it again: it resumes, and the game keeps the old voice until a run completes. To try a different voice, add `OPENAI_VOICE=verse FORCE=1` in front of the command (other voices: `ash` (default), `ballad`, `coral`, `sage`). ElevenLabs also works: put `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in `.env.local` and run with `VOICE_PROVIDER=elevenlabs`.
+If it stops part-way (network, rate limit), run it again: it resumes, and the game keeps the old voice until a run completes. To try a different voice, add `OPENAI_VOICE=ash FORCE=1` in front of the command (default `echo`; others: `verse`, `ballad`, `coral`, `sage`). ElevenLabs also works: put `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in `.env.local` and run with `VOICE_PROVIDER=elevenlabs`.
 
 ### Layout
 ```

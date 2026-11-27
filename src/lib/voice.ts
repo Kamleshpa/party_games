@@ -123,10 +123,11 @@ function speak(text: string, done: () => void) {
     const synth = window.speechSynthesis;
     if (!synth || !text) return done();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-IN';
+    const lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : 'en-IN'; // the host's lines are in Hindi
+    u.lang = lang;
     u.rate = 1;
     const voices = synth.getVoices();
-    const v = voices.find((x) => x.lang === 'en-IN') || voices.find((x) => x.lang.indexOf('en') === 0);
+    const v = voices.find((x) => x.lang === lang) || voices.find((x) => x.lang.indexOf(lang.slice(0, 2)) === 0);
     if (v) u.voice = v;
     u.onend = done;
     u.onerror = done;

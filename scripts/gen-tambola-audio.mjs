@@ -4,7 +4,7 @@
 //   OPENAI_API_KEY=sk-...            (recommended: follows the PERSONA directions below)
 //   ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=...
 // then run:  npm run gen:audio
-// Options: OPENAI_VOICE=verse (default ash), VOICE_PROVIDER=openai|elevenlabs|mac.
+// Options: OPENAI_VOICE=ash (default echo), VOICE_PROVIDER=openai|elevenlabs|mac.
 // Without a key it falls back to the robotic macOS voice.
 //
 // Only clips whose text (or voice) changed are re-generated, so re-runs are cheap.
@@ -29,7 +29,7 @@ const ext = provider === 'mac' ? 'm4a' : 'mp3';
 
 const ELEVEN_VOICE = env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'; // premade "Adam"; pick an Indian voice in the Voice Library
 const ELEVEN_MODEL = env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
-const OPENAI_VOICE = env.OPENAI_VOICE || 'ash';
+const OPENAI_VOICE = env.OPENAI_VOICE || 'echo';
 const OPENAI_MODEL = env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const MAC_VOICE = env.VOICE || 'Rishi';
 const label =
@@ -37,13 +37,11 @@ const label =
 
 // Delivery direction for OpenAI's TTS. An original character, not an impression of anyone real.
 const PERSONA =
-  'You are an original, zany comedy commentator on a slapstick TV game show, calling Tambola (Housie) numbers ' +
-  'live at a desi family party in America. Accent: warm, natural Indian English; say the Hindi words ' +
-  '(arre, bhai sahab, kya baat hai, bechara, shabash, haaye, dhishoom, ekdum) the authentic Hindi way. ' +
-  'Delivery: fast, punchy running commentary with big swings in energy. Drop to a sly, suspenseful hush before a number, ' +
-  'punch the number itself loud and crystal clear, then fire off the joke with mock drama: fake shock, fake sympathy, ' +
-  'cheeky teasing, as if you can barely stop yourself from laughing. Stretch the sound words like dhishoom, whoosh and oho. ' +
-  'A huge grin in the voice the whole time. Never flat, never slow, never robotic.';
+  'You are an original comic Tambola host at a desi family party: a cheeky, street-smart Delhi tapori with loads of swagger and a big heart. ' +
+  'Speak Hindi the way a Delhi local talks with friends: casual, fast, slangy, with a strong Delhi accent and attitude. ' +
+  'When a line has an English number call or prize name, say that part clearly in Indian English, then switch into Delhi Hindi for the joke. ' +
+  'Delivery: loud and playful, teasing the crowd, cracking yourself up, mock-outraged at fake claims, over-the-top when someone wins. ' +
+  'Keep the pace brisk. Never formal, never flat, never robotic.';
 
 const jobs = [];
 for (let n = 1; n <= 90; n++) jobs.push([String(n), callSpoken(n)]);
@@ -137,7 +135,14 @@ try {
   for (const [name, text] of todo) {
     const file = join(OUT, `${name}.${ext}`);
     if (provider === 'mac') mac(text, file, tmp);
-    else writeFileSync(file, await retry(() => (provider === 'openai' ? openai(text) : elevenlabs(text))));
+    else {
+      // the voice services now and then return a clipped take; re-record anything far too short
+      for (let take = 1; ; take++) {
+        writeFileSync(file, await retry(() => (provider === 'openai' ? openai(text) : elevenlabs(text))));
+        if (seconds(file) >= text.length * 0.05 || take >= 3) break;
+      }
+      if (seconds(file) < text.length * 0.05) console.log(`\nWarning: ${name} still sounds clipped; delete ${file} and run again.`);
+    }
     hashes[name] = hash(text);
     process.stdout.write('.');
   }
