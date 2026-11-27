@@ -64,6 +64,11 @@ export interface QuizConfig<S> {
   base: number;
   speed: number;
   botAccuracy: number;
+  /** Pacing; each falls back to the quick defaults below. */
+  revealMs?: number;
+  boardMs?: number;
+  /** Pause after everyone has locked in, before the answer shows. */
+  allInMs?: number;
 }
 
 export const YEAR_MIN = 1970;
@@ -71,6 +76,7 @@ export const YEAR_MAX = 2010;
 const REVEAL_MS = 7500;
 const REVEAL_YEAR_MS = 9000;
 const BOARD_MS = 7000;
+const ALL_IN_MS = 900;
 const STAR_TABLE = [10, 7, 5, 3, 2];
 
 export function ranks(scores: Record<string, number>, pids: string[]): Record<string, number> {
@@ -100,7 +106,7 @@ export function yearPoints(diff: number): number {
 export function emojisShown(q: RunQ, startedAt: number, now: number): number {
   const n = q.emojis ? q.emojis.length : 0;
   if (n <= 1) return n;
-  const step = Math.min(2600, (q.duration * 0.5) / (n - 1));
+  const step = Math.min(3500, (q.duration * 0.5) / (n - 1));
   return Math.min(n, 1 + Math.floor(Math.max(0, now - startedAt) / step));
 }
 
@@ -129,7 +135,7 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
     const q = s.qs[s.qi];
     s.phase = 'reveal';
     s.startedAt = now;
-    s.endsAt = now + (q.kind === 'year' ? REVEAL_YEAR_MS : REVEAL_MS);
+    s.endsAt = now + (q.kind === 'year' ? REVEAL_YEAR_MS : cfg.revealMs || REVEAL_MS);
     s.gains = {};
     let okCount = 0;
     let exact = false;
@@ -163,7 +169,7 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
     const now = ctx.now();
     s.phase = 'board';
     s.startedAt = now;
-    s.endsAt = now + BOARD_MS;
+    s.endsAt = now + (cfg.boardMs || BOARD_MS);
     ctx.fx({ t: 'sfx', name: 'drumroll' });
   }
 
@@ -246,8 +252,9 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
         const left = s.endsAt - now;
         if (left > 0 && left <= 5000 && Math.floor(left / 1000) !== Math.floor((left + 200) / 1000)) ctx.fx({ t: 'sfx', name: 'tick' });
         const active = ctx.active();
-        if (active.length > 0 && active.every((p) => s.answers[p.id]) && s.endsAt - now > 900) {
-          s.endsAt = now + 900;
+        const allIn = cfg.allInMs || ALL_IN_MS;
+        if (active.length > 0 && active.every((p) => s.answers[p.id]) && s.endsAt - now > allIn) {
+          s.endsAt = now + allIn;
           return true;
         }
       }

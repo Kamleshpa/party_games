@@ -163,7 +163,7 @@ describe('quiz engines', () => {
   it('scores fast correct answers higher and runs to final', () => {
     const { ctx, advance, ended } = fakeCtx(3);
     const s = emoji.create(ctx, { rounds: 8, cat: 'mix' });
-    advance(10000);
+    advance(12000);
     emoji.tick(ctx, s);
     expect(s.phase).toBe('question');
     const q = s.qs[0];
@@ -174,12 +174,16 @@ describe('quiz engines', () => {
     emoji.action(ctx, s, 'p2', { k: 'ans', v: (q.correct + 1) % 4 });
     expect(s.answers.p0.pts).toBeGreaterThan(s.answers.p1.pts);
     expect(s.answers.p2.pts).toBe(0);
-    // all answered -> ends after a short grace period
+    // all answered -> a 3-second beat, then the answer
     emoji.tick(ctx, s);
     expect(s.phase).toBe('question');
-    advance(1000);
+    advance(2000);
+    emoji.tick(ctx, s);
+    expect(s.phase).toBe('question');
+    advance(1100);
     emoji.tick(ctx, s);
     expect(s.phase).toBe('reveal');
+    expect(s.endsAt - s.startedAt).toBe(12000);
     expect(s.scores.p0).toBeGreaterThan(s.scores.p1);
     let guard = 0;
     while (s.phase !== 'final' && guard++ < 500) {

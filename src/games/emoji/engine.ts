@@ -31,7 +31,7 @@ export function buildEmojiQuestions(settings: EmojiSettings): RunQ[] {
       extra: `${m.y} · ${m.h}`,
       hint: `${m.y} · ${m.h}`,
       double: i >= chosen.length - 2,
-      duration: 20000,
+      duration: 30000,
     };
   });
 }
@@ -41,9 +41,13 @@ export const emoji = makeQuizModule<EmojiSettings>({
   defaults: { rounds: 12, cat: 'mix' },
   build: buildEmojiQuestions,
   hints: 2,
-  introMs: 9000,
+  // relaxed pace: time to argue about the film, laugh at the answer, read the scores
+  introMs: 12000,
   boardEvery: 4,
   base: 300,
   speed: 700,
   botAccuracy: 0.6,
+  revealMs: 12000,
+  boardMs: 10000,
+  allInMs: 3000,
 });
