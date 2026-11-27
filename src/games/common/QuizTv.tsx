@@ -4,12 +4,13 @@ import { fmt, secondsLeft, useNow } from '../../lib/hooks';
 import { Emo } from '../../lib/Emo';
 import { Avatar, PausedOverlay, TimerBar } from '../../tv/common';
 import { GAME_META } from '../registry';
+import { voiceMs } from '../../lib/voice';
 import { emojisShown, potentialPoints, ranks, YEAR_MAX, YEAR_MIN, type QuizState } from './quizRunner';
 
 export const OPTION_COLORS = ['#ff4d8d', '#4cc9f0', '#ffb703', '#06d6a0'];
 export const OPTION_SHAPES = ['▲', '◆', '●', '■'];
 
-const CFG = { emoji: { base: 300, speed: 700 }, quiz: { base: 500, speed: 500 } };
+const CFG = { emoji: { base: 300, speed: 700 }, quiz: { base: 500, speed: 500 }, filmy: { base: 300, speed: 700 } };
 
 export function QuizTv({ room, s }: { room: Room; s: QuizState }) {
   const now = useNow(150);
@@ -64,8 +65,13 @@ export function QuizTv({ room, s }: { room: Room; s: QuizState }) {
               );
             })}
           </div>
+        ) : q.quote ? (
+          <Listen s={s} reveal={reveal} now={shownNow} />
         ) : (
-          <h2 className={'qz-prompt' + ((q.prompt || '').length > 60 ? ' long' : '')}>{q.prompt}</h2>
+          <h2 className={'qz-prompt' + ((q.prompt || '').length > 60 ? ' long' : '') + (q.audio ? ' song' : '')}>
+            {q.audio && <small>🎵 Which film is this song from?</small>}
+            {q.prompt}
+          </h2>
         )}
 
         {q.kind === 'year' ? <YearPanel room={room} s={s} reveal={reveal} /> : <Options room={room} s={s} reveal={reveal} />}
@@ -99,6 +105,31 @@ export function QuizTv({ room, s }: { room: Room; s: QuizState }) {
     <div className={'qz game-' + s.game}>
       {body}
       {s.paused && <PausedOverlay />}
+    </div>
+  );
+}
+
+/** Dialogue round: a speaker while the line plays, then subtitles; the line + meaning at the reveal. */
+function Listen({ s, reveal, now }: { s: QuizState; reveal: boolean; now: number }) {
+  const q = s.qs[s.qi];
+  const t = now - s.qStart;
+  const cues = s.cues || [];
+  const talk = q.audio ? voiceMs(q.audio) : 0; // 0 when the sound is off
+  const playing = !reveal && cues.some((c, i) => i < (s.cueI || 0) && t >= c && t < c + talk);
+  const again = (s.cueI || 0) > 1;
+  const subs = reveal || ((s.cueI || 0) >= 1 && t >= (s.subsAt || 0));
+  return (
+    <div className={'listen' + (playing ? ' playing' : '') + (subs ? ' has-subs' : '') + (reveal ? ' done' : '')}>
+      {!reveal && (
+        <div className="listen-ico">
+          <span className="ring" />
+          <span className="ring r2" />
+          <Emo e="🔊" size={150} />
+        </div>
+      )}
+      {!reveal && <div className="listen-say">{playing ? (again ? 'One more time…' : 'Listen…') : 'Which film is this dialogue from?'}</div>}
+      {subs && <blockquote className="subs">“{q.quote}”</blockquote>}
+      {reveal && q.tr && <div className="subs-tr">{q.tr}</div>}
     </div>
   );
 }
@@ -206,7 +237,7 @@ function RevealFoot({ room, s }: { room: Room; s: QuizState }) {
   return (
     <div className="reveal-foot">
       <div className="reveal-answer">
-        {q.emojis && <div className="big-answer">🎬 {answerText}</div>}
+        {(q.emojis || q.audio) && <div className="big-answer">🎬 {answerText}</div>}
         {q.extra && <div className="reveal-extra">💡 {q.extra}</div>}
         {fastest && q.kind !== 'year' && (
           <div className="fastest">

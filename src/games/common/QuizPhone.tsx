@@ -8,11 +8,11 @@ import { GAME_META } from '../registry';
 import { OPTION_COLORS, OPTION_SHAPES } from './QuizTv';
 import { YEAR_MAX, YEAR_MIN } from './quizRunner';
 
-const CFG: Record<string, { base: number; speed: number }> = { emoji: { base: 300, speed: 700 }, quiz: { base: 500, speed: 500 } };
+const CFG: Record<string, { base: number; speed: number }> = { emoji: { base: 300, speed: 700 }, quiz: { base: 500, speed: 500 }, filmy: { base: 300, speed: 700 } };
 
 export function QuizPhone({ client, v, g }: { client: PlayerClient; v: PlayerView; g: any }) {
   const now = useNow(200, client.offset);
-  const meta = GAME_META[g.game as 'emoji' | 'quiz'];
+  const meta = GAME_META[g.game as 'emoji' | 'quiz' | 'filmy'];
   const [year, setYear] = useState(1990);
 
   const key = g.phase + ':' + g.qi;
@@ -133,7 +133,15 @@ export function QuizPhone({ client, v, g }: { client: PlayerClient; v: PlayerVie
   return (
     <div className="qp">
       {header}
-      {g.game === 'emoji' ? <p className="qp-look">📺 Look at the emojis on the TV — which movie?</p> : <p className="qp-prompt">{g.prompt}</p>}
+      {g.game === 'emoji' ? (
+        <p className="qp-look">📺 Look at the emojis on the TV — which movie?</p>
+      ) : g.game === 'filmy' && !g.prompt ? (
+        <p className="qp-look">🔊 Listen to the TV — which film is this dialogue from?</p>
+      ) : g.game === 'filmy' ? (
+        <p className="qp-prompt">🎵 Which film is the song {g.prompt} from?</p>
+      ) : (
+        <p className="qp-prompt">{g.prompt}</p>
+      )}
       {g.paused && <div className="tp-paused">⏸ Game paused</div>}
 
       {g.kind === 'year' ? (

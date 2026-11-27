@@ -1,7 +1,7 @@
 // Tambola announcer script. The host is an original comic Delhi tapori who talks in Hindi;
 // only the number call itself is in English. Screens show the English FUN lines instead.
 // The announcer says callSpoken(n) for each number and LINES for game moments.
-// Only erasable TS syntax here so scripts/gen-tambola-audio.mjs can import it with Node.
+// Only erasable TS syntax here so scripts/gen-audio.mjs can import it with Node.
 
 const ONES = [
   '', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

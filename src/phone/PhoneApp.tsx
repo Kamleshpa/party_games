@@ -71,7 +71,7 @@ function CodeScreen({ onCode }: { onCode: (c: string) => void }) {
     <div className="phone center">
       <div className="ph-logo">🪔</div>
       <h1 className="ph-title">Desi Party Night</h1>
-      <p className="ph-sub">Tambola · Emoji Movie · 90s Kids Quiz</p>
+      <p className="ph-sub">Tambola · Emoji Movie · Filmy Dialogues · 90s Kids Quiz</p>
       <div className="card">
         <label>Room code shown on the TV</label>
         <input

@@ -3,8 +3,9 @@ import type { GameModule } from './types';
 import { tambola } from './tambola/engine';
 import { emoji } from './emoji/engine';
 import { quiz } from './quiz/engine';
+import { filmy } from './filmy/engine';
 
-export const MODULES: Record<GameId, GameModule> = { tambola, emoji, quiz };
+export const MODULES: Record<GameId, GameModule> = { tambola, emoji, quiz, filmy };
 
 export interface SettingOption {
   key: string;
@@ -91,6 +92,40 @@ export const GAME_META: Record<GameId, GameMeta> = {
       },
     ],
   },
+  filmy: {
+    id: 'filmy',
+    title: 'Filmy Dialogues',
+    tagline: 'Hear the dialogue, name the film!',
+    icon: '🎙️',
+    accent: '#c77dff',
+    minutes: '8–10 min',
+    rules: [
+      '🔊 The TV plays a famous film dialogue — which movie is it?',
+      'Missed it? It plays once more, with subtitles',
+      '🎵 Song rounds: which film is the song from?',
+      'Lock in early for more points · 💡 2 hints per game',
+    ],
+    options: [
+      {
+        key: 'mode',
+        label: 'Rounds',
+        choices: [
+          { value: 'mix', label: '🍿 Mix' },
+          { value: 'dialogues', label: '🎙️ Dialogues only' },
+          { value: 'songs', label: '🎵 Songs only' },
+        ],
+      },
+      {
+        key: 'rounds',
+        label: 'Questions',
+        choices: [
+          { value: 8, label: '8' },
+          { value: 12, label: '12' },
+          { value: 16, label: '16' },
+        ],
+      },
+    ],
+  },
   quiz: {
     id: 'quiz',
     title: '90s Kids Quiz',
@@ -118,4 +153,4 @@ export const GAME_META: Record<GameId, GameMeta> = {
   },
 };
 
-export const GAME_ORDER: GameId[] = ['tambola', 'emoji', 'quiz'];
+export const GAME_ORDER: GameId[] = ['tambola', 'emoji', 'filmy', 'quiz'];

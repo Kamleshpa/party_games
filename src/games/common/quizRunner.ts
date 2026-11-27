@@ -1,4 +1,4 @@
-// Shared engine for question games (Emoji Movie + 90s Kids Quiz).
+// Shared engine for question games (Emoji Movie, 90s Kids Quiz, Filmy Dialogues).
 // Flow: intro -> (question -> reveal [-> board]) x N -> final
 import type { GameCtx, GameModule } from '../types';
 import { randInt, randomId } from '../../lib/rand';
@@ -17,6 +17,13 @@ export interface RunQ {
   hint?: string; // emoji lifeline
   double?: boolean;
   duration: number;
+  /** Voice clip played when the question starts (e.g. 'filmy/d-sholay'). */
+  audio?: string;
+  /** Play the clip a second time, then show `quote` as subtitles. */
+  replay?: boolean;
+  quote?: string;
+  /** English meaning of the quote, shown with the answer. */
+  tr?: string;
 }
 
 export interface Ans {
@@ -32,7 +39,7 @@ export type QuizPhase = 'intro' | 'question' | 'reveal' | 'board' | 'final';
 
 export interface QuizState {
   id: string;
-  game: 'emoji' | 'quiz';
+  game: QuizGame;
   phase: QuizPhase;
   qs: RunQ[];
   qi: number;
@@ -51,10 +58,17 @@ export interface QuizState {
   stars: Record<string, number>;
   played: Record<string, boolean>;
   botPlan: Record<string, { qi: number; at: number; v: number }>;
+  /** When the clip plays, in ms after qStart; cueI = how many have played. */
+  cues?: number[];
+  cueI?: number;
+  /** Subtitles show from this many ms after qStart. */
+  subsAt?: number;
 }
 
+export type QuizGame = 'emoji' | 'quiz' | 'filmy';
+
 export interface QuizConfig<S> {
-  game: 'emoji' | 'quiz';
+  game: QuizGame;
   defaults: S;
   build(settings: S): RunQ[];
   hints: number;
@@ -77,6 +91,7 @@ const REVEAL_MS = 7500;
 const REVEAL_YEAR_MS = 9000;
 const BOARD_MS = 7000;
 const ALL_IN_MS = 900;
+const CUE_MS = 700; // after the whoosh
 const STAR_TABLE = [10, 7, 5, 3, 2];
 
 export function ranks(scores: Record<string, number>, pids: string[]): Record<string, number> {
@@ -127,6 +142,20 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
     s.startedAt = now;
     s.qStart = now;
     s.endsAt = now + s.qs[qi].duration;
+    s.cues = [];
+    s.cueI = 0;
+    s.subsAt = 0;
+    const q = s.qs[qi];
+    if (q.audio) {
+      const talk = ctx.voiceMs(q.audio);
+      s.cues.push(CUE_MS);
+      // once more after a pause, with subtitles (straight away when the sound is off)
+      if (q.replay) {
+        const again = Math.max(CUE_MS + talk + 2500, q.duration * 0.4);
+        s.cues.push(again);
+        s.subsAt = talk ? again : 0;
+      }
+    }
     ctx.fx({ t: 'sfx', name: 'whoosh' });
   }
 
@@ -243,6 +272,12 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
       const now = ctx.now();
       if (s.phase === 'question') {
         const q = s.qs[s.qi];
+        let cued = false;
+        while (q.audio && s.cues && (s.cueI || 0) < s.cues.length && now - s.qStart >= s.cues[s.cueI || 0]) {
+          ctx.fx({ t: 'voice', key: q.audio });
+          s.cueI = (s.cueI || 0) + 1;
+          cued = true;
+        }
         if (q.emojis) {
           // little pop sound as each emoji appears
           const shown = emojisShown(q, s.startedAt, now);
@@ -257,6 +292,7 @@ export function makeQuizModule<S>(cfg: QuizConfig<S>): GameModule<QuizState, S> 
           s.endsAt = now + allIn;
           return true;
         }
+        if (cued && now < s.endsAt) return true;
       }
       if (now >= s.endsAt) {
         advance(ctx, s);

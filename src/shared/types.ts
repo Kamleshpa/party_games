@@ -1,4 +1,4 @@
-export type GameId = 'tambola' | 'emoji' | 'quiz';
+export type GameId = 'tambola' | 'emoji' | 'quiz' | 'filmy';
 
 export interface PublicPlayer {
   id: string;

@@ -24,7 +24,7 @@ export function Lobby({ room, net }: { room: Room; net: string }) {
           <Emo e="🪔" size={84} />
           <div>
             <h1>Desi Party Night</h1>
-            <p>Tambola · Emoji Movie · 90s Kids Quiz</p>
+            <p>Tambola · Emoji Movie · Filmy Dialogues · 90s Kids Quiz</p>
           </div>
         </div>
         {ranked.length > 0 && (
@@ -83,7 +83,7 @@ export function Lobby({ room, net }: { room: Room; net: string }) {
             const sel = id === s.selected;
             return (
               <div key={id} className={'game-card' + (sel ? ' sel' : '')} style={{ borderColor: sel ? m.accent : undefined }}>
-                <Emo e={m.icon} size={76} />
+                <Emo e={m.icon} size={64} />
                 <div>
                   <h3 style={{ color: m.accent }}>{m.title}</h3>
                   <p>{m.tagline}</p>

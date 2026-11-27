@@ -5,6 +5,8 @@ import { emoji } from './emoji/engine';
 import { quiz, buildQuiz } from './quiz/engine';
 import { EMOJI_MOVIES } from './emoji/data';
 import { QUIZ } from './quiz/data';
+import { filmy, buildFilmyQuestions } from './filmy/engine';
+import { DIALOGUES, FILMS, SONGS, dialogueClip, filmyClipText, songClip } from './filmy/data';
 import { callFun, callSpoken, callTitle, clipName, clipText, LINES, SPOKEN } from './tambola/calls';
 import type { Fx, GameCtx, Player } from './types';
 
@@ -204,5 +206,78 @@ describe('quiz engines', () => {
     quiz.action(ctx, s, 'p1', { k: 'ans', v: 1998 });
     expect(s.answers.p0.pts).toBe(1000);
     expect(s.answers.p1.pts).toBe(300);
+  });
+});
+
+describe('filmy dialogues', () => {
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  it('content is sane and never names the film', () => {
+    const clips = new Set<string>();
+    for (const d of DIALOGUES) {
+      expect(FILMS[d.f]).toBeTruthy();
+      expect(norm(d.line)).not.toContain(norm(d.f));
+      expect(d.hi && d.en).toBeTruthy();
+      clips.add(dialogueClip(d));
+    }
+    for (const x of SONGS) {
+      expect(FILMS[x.f]).toBeTruthy();
+      expect(norm(x.t)).not.toContain(norm(x.f));
+      expect(x.hi).toMatch(/[\u0900-\u097F]/);
+      clips.add(songClip(x));
+    }
+    expect(clips.size).toBe(DIALOGUES.length + SONGS.length); // one clip each, no clashes
+    for (const c of clips) expect(filmyClipText(c)).toBeTruthy();
+    expect(Object.keys(FILMS).length).toBeGreaterThan(80);
+  });
+
+  it('builds alternating dialogue and song rounds', () => {
+    const qs = buildFilmyQuestions({ rounds: 12, mode: 'mix' });
+    expect(qs.length).toBe(12);
+    expect(qs.map((q) => (q.quote ? 'd' : 's')).join('')).toBe('dsdsdsdsdsds');
+    expect(qs.filter((q) => q.double).length).toBe(2);
+    for (const q of qs) {
+      expect(new Set(q.options).size).toBe(4);
+      expect(FILMS[q.options![q.correct]]).toBeTruthy();
+      expect(q.audio).toMatch(/^filmy\/[ds]-/);
+    }
+    expect(buildFilmyQuestions({ rounds: 16, mode: 'songs' }).every((q) => q.prompt && !q.quote)).toBe(true);
+    expect(buildFilmyQuestions({ rounds: 8, mode: 'dialogues' }).every((q) => q.quote && q.replay)).toBe(true);
+  });
+
+  it('plays the dialogue, then once more with subtitles', () => {
+    const { ctx, advance, fx } = fakeCtx(2);
+    ctx.voiceMs = () => 3000;
+    const s = filmy.create(ctx, { rounds: 8, mode: 'dialogues' });
+    advance(12000);
+    filmy.tick(ctx, s);
+    expect(s.phase).toBe('question');
+    const voices = () => fx.filter((f) => f.t === 'voice');
+    expect(voices().length).toBe(0);
+    advance(700);
+    filmy.tick(ctx, s);
+    expect(voices()).toEqual([{ t: 'voice', key: s.qs[0].audio }]);
+    expect(s.subsAt).toBe(10000); // 40% of 25s, later than the first play + a pause
+    advance(9000);
+    filmy.tick(ctx, s);
+    expect(voices().length).toBe(1);
+    advance(400);
+    filmy.tick(ctx, s);
+    expect(voices().length).toBe(2);
+    // pausing holds the timeline
+    filmy.control(ctx, s, 'pause');
+    advance(60000);
+    filmy.control(ctx, s, 'resume');
+    filmy.tick(ctx, s);
+    expect(s.phase).toBe('question');
+    expect(voices().length).toBe(2);
+  });
+
+  it('shows subtitles straight away when the sound is off', () => {
+    const { ctx, advance } = fakeCtx(2);
+    const s = filmy.create(ctx, { rounds: 8, mode: 'dialogues' });
+    advance(12000);
+    filmy.tick(ctx, s);
+    expect(s.subsAt).toBe(0);
   });
 });

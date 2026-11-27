@@ -38,6 +38,7 @@ export function freshRoom(code: string): RoomState {
       tambola: { ...MODULES.tambola.defaults },
       emoji: { ...MODULES.emoji.defaults },
       quiz: { ...MODULES.quiz.defaults },
+      filmy: { ...MODULES.filmy.defaults },
     },
     gameNo: 0,
     ended: false,
@@ -65,6 +66,10 @@ export class Room {
     private opts: { voiceMs?: (key: string) => number } = {},
   ) {
     this.s = state;
+    // a party saved before a game was added has no settings for it yet
+    for (const id of Object.keys(MODULES) as GameId[]) {
+      if (!this.s.settings[id]) this.s.settings[id] = { ...MODULES[id].defaults };
+    }
     // After a TV refresh nobody is connected until their phone reconnects.
     for (const p of this.s.players) {
       if (!p.bot) {

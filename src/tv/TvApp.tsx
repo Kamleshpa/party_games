@@ -95,7 +95,7 @@ export function TvApp() {
             <Emo e="🪔" size={110} />
           </div>
           <h1 className="splash-title">Desi Party Night</h1>
-          <p className="splash-sub">Tambola · Emoji Movie · 90s Kids Quiz</p>
+          <p className="splash-sub">Tambola · Emoji Movie · Filmy Dialogues · 90s Kids Quiz</p>
           {status === 'splash' && (
             <div className="splash-buttons">
               <button className="big-btn" autoFocus onClick={() => begin(false)}>

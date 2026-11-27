@@ -6,6 +6,7 @@ A party game app for get-togethers. The **TV shows the game** in its browser; ev
 |---|---|
 | 🎟️ **Tambola Night** | Housie with auto-generated tickets on each phone. A game-show announcer calls every number with a fun line ("Two and five… twenty-five! Quarter century — silver jubilee!", "Knock at the door — it's the in-laws, hide the snacks!") over a bhangra-style game-show beat, with hype lines, a halfway call, and a "somebody is ONE number away from Full House!" moment. Claim Early Five / Top, Middle, Bottom Line / Four Corners / Full House from the phone. A false claim = **BOGEY 🚨** + 3 numbers in jail. "Auto-mark" mode for kids. |
 | 🎬 **Emoji Movie** | Emojis pop up one at a time on the TV — guess the film. Lock in early for more points, 2 hints per game, and the last 2 questions count double. Bollywood classics, 2000s hits, and a Kids & Hollywood pack. |
+| 🎙️ **Filmy Dialogues** | The TV plays a famous Hindi film dialogue ("Kitne aadmi the?", "Mogambo khush hua!") — name the film. It plays once more with subtitles for anyone who missed it, and the answer shows the English meaning. **Song rounds** show a song title ("Chaiyya Chaiyya") and the Tambola host asks which film it's from. Mix, dialogues only, or songs only. The dialogues are read by an AI narrator, not taken from the films, and there are no song lyrics or song audio. |
 | 📼 **90s Kids Quiz** | Doordarshan, ads and jingles, cricket, Indipop, comics, gadgets. Multiple choice, True or False, and Guess the Year (a slider; the TV shows everyone's guesses on a number line). |
 
 Across the whole evening, players earn ⭐ party stars, shown on the lobby leaderboard.
@@ -61,11 +62,14 @@ npm run build
 ### Adding your own content
 - Emoji movies: `src/games/emoji/data.ts`
 - Quiz questions: `src/games/quiz/data.ts` (for multiple choice, put the correct answer **first**; options get shuffled)
+- Film dialogues and songs: `src/games/filmy/data.ts`. Add the film to `FILMS` too (its year and stars are the hint). Wrong options are films from about the same years. Then regenerate the voice clips.
 - Tambola calls and announcer lines: `src/games/tambola/calls.ts`. After editing, regenerate the voice clips (see below). Only the lines you changed get re-recorded.
 
 ## Making the announcer sound like a real person
 
-The announcer is an original comic Delhi tapori host who talks in Hindi; only the number call itself is in English. The TV screen keeps showing the English lines (`FUN` in `calls.ts`); the spoken Hindi lines are `SPOKEN` and `LINES`. The clips in `public/audio/tambola` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-tambola-audio.mjs` (PERSONA). The full script is under 10,000 characters and costs well under a dollar.
+The announcer is an original comic Delhi tapori host who talks in Hindi; only the number call itself is in English. The TV screen keeps showing the English lines (`FUN` in `calls.ts`); the spoken Hindi lines are `SPOKEN` and `LINES`. The same host introduces the Filmy Dialogues song rounds, and a dramatic narrator reads the film dialogues (a woman's voice for lines a woman says in the film).
+
+The clips in `public/audio/tambola` and `public/audio/filmy` are pre-recorded. The free fallback uses the Mac's built-in voice, which sounds flat. For the real thing, record them once with OpenAI's voice, which follows the acting directions in `scripts/gen-audio.mjs` (PERSONA for the host, DIALOGUE for the narrator). Everything together is about 15,000 characters and costs well under a dollar.
 
 1. Get an API key at platform.openai.com → API keys (the account needs a little prepaid credit).
 2. Put it in a file called `.env.local` in the project folder. That file is git-ignored, so the key never goes to GitHub or Vercel:
@@ -76,15 +80,15 @@ The announcer is an original comic Delhi tapori host who talks in Hindi; only th
    ```bash
    npm run gen:audio
    ```
-4. Commit and push `public/audio/tambola`, and Vercel serves the new voice. Refresh the TV page.
+4. Commit and push `public/audio`, and Vercel serves the new voice. Refresh the TV page.
 
-If it stops part-way (network, rate limit), run it again: it resumes, and the game keeps the old voice until a run completes. To try a different voice, add `OPENAI_VOICE=ash FORCE=1` in front of the command (default `echo`; others: `verse`, `ballad`, `coral`, `sage`). ElevenLabs also works: put `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in `.env.local` and run with `VOICE_PROVIDER=elevenlabs`.
+If it stops part-way (network, rate limit), run it again: it resumes, and the game keeps the old voice until a run completes. To try a different host voice, add `OPENAI_VOICE=ash` in front of the command (default `echo`; others: `verse`, `ballad`, `coral`, `sage`). For the dialogue narrators use `FILMY_VOICE=ash` and `FILMY_VOICE_F=nova` (defaults `onyx` and `coral`). Only clips whose voice or text changed get re-recorded; `DRY=1` shows what would be recorded without recording anything. ElevenLabs also works: put `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in `.env.local` and run with `VOICE_PROVIDER=elevenlabs`.
 
 ### Layout
 ```
 src/host/room.ts            game server (runs in the TV browser)
 src/net/                    transports: peer (WebRTC), ably (relay), local (testing)
-src/games/tambola|emoji|quiz  engines, TV screens, phone screens, content
+src/games/tambola|emoji|quiz|filmy  engines, TV screens, phone screens, content
 src/games/common/           shared question-game engine + screens
 src/tv/  src/phone/         app shells (lobby, join, captain controls)
 api/realtime-token.js       optional Ably token endpoint (Vercel function)
