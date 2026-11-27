@@ -1,7 +1,7 @@
 import type { Room } from '../host/room';
 import { GAME_META, GAME_ORDER } from '../games/registry';
 import { Emo } from '../lib/Emo';
-import { Avatar, Qr, joinUrl } from './common';
+import { Avatar, Qr, joinUrl, partyKey } from './common';
 
 export function Lobby({ room, net }: { room: Room; net: string }) {
   const s = room.s;
@@ -48,7 +48,11 @@ export function Lobby({ room, net }: { room: Room; net: string }) {
             <span key={i}>{c}</span>
           ))}
         </div>
-        <p className="join-tip">Scan the QR code with your camera, or open the site and enter the code</p>
+        <p className="join-tip">
+          {partyKey()
+            ? 'Scan the QR code, or open the site and enter the party password and code'
+            : 'Scan the QR code with your camera, or open the site and enter the code'}
+        </p>
       </section>
 
       <section className="players-area">

@@ -56,8 +56,16 @@ export function Qr({ text, size }: { text: string; size: number }) {
   return <div className="qr" style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
+/** The party password's access key (the cookie middleware.ts sets on the TV), or '' when there's no password. */
+export function partyKey(): string {
+  const m = document.cookie.match(/(?:^|;\s*)dpn_key=([0-9a-f]+)/);
+  return m ? m[1] : '';
+}
+
+/** The QR code carries the key, so guests who scan it skip the password page. */
 export function joinUrl(code: string, net: string): string {
-  return window.location.origin + '/?r=' + code + (net === 'local' ? '&net=local' : '');
+  const k = partyKey();
+  return window.location.origin + '/?r=' + code + (net === 'local' ? '&net=local' : '') + (k ? '&k=' + k : '');
 }
 
 export function JoinChip({ code }: { code: string }) {

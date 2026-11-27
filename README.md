@@ -44,6 +44,16 @@ Vercel auto-detects **Vite**, so there's nothing to configure. Or deploy from yo
 
   To test the relay locally, put `ABLY_API_KEY=…` in a `.env.local` file (it's git-ignored) and run `npm run dev`.
 
+### Party password (keep strangers out)
+
+Anyone who finds the link could otherwise open the game, or host their own party on your site. To lock it:
+
+1. In Vercel → your project → **Settings → Environment Variables**, add `PARTY_PASSWORD` = a password used only for this game (case and spaces don't matter). A number such as a 5-digit PIN works too, and it's easy to type with the TV remote's number keys. Then **redeploy** (Deployments → ⋯ → Redeploy).
+2. Open `/tv` on the TV. It asks for the password once, then remembers the TV for a year.
+3. Guests just **scan the QR code**: it carries an access key (not the password), so phones skip the password page. Anyone typing the address by hand gets the password page.
+
+Without the password, nothing loads: no game, no lobby, no Ably relay. Change the password to lock everyone out again, including anyone holding an old photo of the QR code. Delete the variable (and redeploy) to open the site again. The check runs on Vercel's servers (`middleware.ts`), so `npm run dev` stays open.
+
 After every deploy, **refresh the TV page** (choose "Continue last party"). If the TV is still on an older version, phones show a warning banner.
 
 If the TV browser still struggles, open `/tv` on a laptop connected to the TV with HDMI, or on a Fire TV Stick / Chromecast with Google TV browser.
@@ -96,4 +106,5 @@ src/games/tambola|emoji|quiz|filmy  engines, TV screens, phone screens, content
 src/games/common/           shared question-game engine + screens
 src/tv/  src/phone/         app shells (lobby, join, captain controls)
 api/realtime-token.js       optional Ably token endpoint (Vercel function)
+middleware.ts               optional party password (runs on Vercel before every page)
 ```
